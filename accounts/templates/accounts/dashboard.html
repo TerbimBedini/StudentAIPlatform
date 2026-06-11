@@ -1,95 +1,89 @@
 <!DOCTYPE html>
 <html>
 <head>
-
-<title>StudentAI Dashboard</title>
-
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css" rel="stylesheet">
-
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>StudentAI Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
-
 <body>
 
 <nav class="navbar navbar-dark bg-dark">
+    <div class="container">
+        <span class="navbar-brand">
+            StudentAI
+        </span>
 
-<div class="container">
-
-<span class="navbar-brand">
-StudentAI
-</span>
-
-<a href="/logout/" class="btn btn-danger">
-Logout
-</a>
-
-</div>
-
+        <a href="{% url 'logout' %}" class="btn btn-danger">
+            Logout
+        </a>
+    </div>
 </nav>
 
-<div class="container mt-5">
+<main class="container mt-5">
+    <div class="d-flex justify-content-between align-items-center gap-3">
+        <h2 class="mb-0">
+            Mirë se erdhe, {{ request.user.username }}
+        </h2>
 
-<h2>
-Mirë se erdhe, {{ request.user.username }}
-</h2>
+        <a href="{% url 'upload_document' %}" class="btn btn-primary">
+            Upload Document
+        </a>
+    </div>
 
-<hr>
+    <hr>
 
-<div class="row">
+    <div class="row">
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5>Leksionet</h5>
+                    <h2>0</h2>
+                </div>
+            </div>
+        </div>
 
-<div class="col-md-4">
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5>Quiz-et</h5>
+                    <h2>0</h2>
+                </div>
+            </div>
+        </div>
 
-<div class="card">
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5>Dokumentet</h5>
+                    <h1>{{ documents_count }}</h1>
+                </div>
+            </div>
+        </div>
+    </div>
 
-<div class="card-body">
+    <div class="container mt-5">
+        <h3>Dokumentet e Mia</h3>
 
-<h5>Leksionet</h5>
-
-<h2>0</h2>
-
-</div>
-
-</div>
-
-</div>
-
-<div class="col-md-4">
-
-<div class="card">
-
-<div class="card-body">
-
-<h5>Quiz-et</h5>
-
-<h2>0</h2>
-
-</div>
-
-</div>
-
-</div>
-
-<div class="col-md-4">
-
-<div class="card">
-
-<div class="card-body">
-
-<h5>Dokumentet</h5>
-
-<h1>{{ documents_count }}</h1>
-
-</div>
-
-</div>
-
-</div>
-
-</div>
-
-</div>
-<a href="{% url 'upload_document' %}" class="btn btn-primary">
-    Upload Document
-</a>
+        {% if documents %}
+            <div class="list-group mt-3">
+                {% for document in documents %}
+                    <a href="{% url 'document_detail' document.id %}" class="list-group-item list-group-item-action">
+                        <div class="d-flex w-100 justify-content-between gap-3">
+                            <h5 class="mb-1">{{ document.title }}</h5>
+                            <small>{{ document.uploaded_at|date:"d M Y H:i" }}</small>
+                        </div>
+                        <p class="mb-1">{{ document.file.name }}</p>
+                    </a>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="text-muted mt-3">
+                Nuk ke ngarkuar ende dokumente.
+            </p>
+        {% endif %}
+    </div>
+</main>
 
 </body>
 </html>

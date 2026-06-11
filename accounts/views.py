@@ -1,4 +1,5 @@
 from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect
 from .forms import RegisterForm
 from documents.models import Document
@@ -54,14 +55,16 @@ def register_view(request):
 
 
 
+@login_required(login_url='login')
 def dashboard(request):
-
-    documents_count = Document.objects.filter(
+    documents = Document.objects.filter(
         uploaded_by=request.user
-    ).count()
+    ).order_by('-uploaded_at')
+
 
     context = {
-        'documents_count': documents_count
+        'documents': documents,
+        'documents_count': documents.count()
     }
 
     return render(

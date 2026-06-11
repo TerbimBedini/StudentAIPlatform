@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ document.title }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+
+<nav class="navbar navbar-dark bg-dark">
+    <div class="container">
+        <a class="navbar-brand" href="{% url 'dashboard' %}">
+            StudentAI
+        </a>
+
+        <a href="{% url 'logout' %}" class="btn btn-danger">
+            Logout
+        </a>
+    </div>
+</nav>
+
+<main class="container-fluid px-4 mt-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
+        <div>
+            <h1 class="h3">{{ document.title }}</h1>
+            <p class="text-muted mb-0">
+                {{ document.file.name }}
+            </p>
+        </div>
+
+        <div class="d-flex flex-wrap gap-2">
+            <a href="{% url 'document_file' document.id %}" target="_blank" rel="noopener" class="btn btn-primary">
+                Hap origjinalin
+            </a>
+
+            <a href="{% url 'document_file' document.id %}" download class="btn btn-outline-primary">
+                Shkarko
+            </a>
+
+            <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary">
+                Kthehu
+            </a>
+        </div>
+    </div>
+
+    <hr>
+
+    {% if is_pdf and not show_extracted_text %}
+        <iframe
+            src="{% url 'document_file' document.id %}"
+            title="{{ document.title }}"
+            class="w-100 border rounded"
+            style="height: 78vh;"
+        ></iframe>
+    {% elif not show_extracted_text %}
+        <div class="alert alert-info">
+            Ky dokument eshte {{ file_extension|upper }}. Per ta pare pa ndryshuar formatimin,
+            hape ose shkarkoje origjinalin me butonat me siper.
+        </div>
+    {% endif %}
+    {% if show_extracted_text %}
+        <div class="d-flex justify-content-between align-items-center gap-3">
+            <h2 class="h4 mb-0">Teksti i nxjerre</h2>
+
+            <a href="{% url 'document_detail' document.id %}" class="btn btn-outline-primary">
+                Shfaq origjinalin
+            </a>
+        </div>
+
+        {% if error_message %}
+            <div class="alert alert-warning mt-3">
+                {{ error_message }}
+            </div>
+        {% endif %}
+
+        {% if extracted_text %}
+            <div class="bg-light border rounded p-3 mt-3 lh-lg" style="white-space: pre-line;">
+                {{ extracted_text }}
+            </div>
+        {% endif %}
+    {% endif %}
+</main>
+
+</body>
+</html>
