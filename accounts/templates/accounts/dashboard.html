@@ -68,13 +68,43 @@
         {% if documents %}
             <div class="list-group mt-3">
                 {% for document in documents %}
-                    <a href="{% url 'document_detail' document.id %}" class="list-group-item list-group-item-action">
+                    <div class="list-group-item">
                         <div class="d-flex w-100 justify-content-between gap-3">
-                            <h5 class="mb-1">{{ document.title }}</h5>
+                            <h5 class="mb-1">📄 {{ document.title }}</h5>
                             <small>{{ document.uploaded_at|date:"d M Y H:i" }}</small>
                         </div>
+                        {% if document.ai_processed %}
+                            <span class="badge bg-success">
+                                AI Processed
+                            </span>
+                        {% endif %}
+
                         <p class="mb-1">{{ document.file.name }}</p>
-                    </a>
+
+                        {% if document.summary %}
+                            <div class="mt-2">
+                                <strong>Përmbledhje AI:</strong>
+
+                                <p>
+                                    {{ document.summary|truncatechars:300 }}
+                                </p>
+                            </div>
+                        {% endif %}
+
+                        <div class="d-flex flex-wrap gap-2 mt-3">
+                            <a href="{% url 'document_detail' document.id %}" class="btn btn-primary btn-sm">
+                                📄 Shiko Dokumentin
+                            </a>
+
+                            <a href="#" class="btn btn-success btn-sm">
+                                🤖 Pyet AI
+                            </a>
+
+                            <a href="#" class="btn btn-warning btn-sm">
+                                📝 Gjenero Quiz
+                            </a>
+                        </div>
+                    </div>
                 {% endfor %}
             </div>
         {% else %}

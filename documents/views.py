@@ -7,6 +7,8 @@ from django.shortcuts import get_object_or_404, redirect, render
 from .forms import DocumentForm
 from .models import Document
 from .utils import TextExtractionError, extract_text_from_document
+from .utils import extract_text_from_pdf
+from .ai import generate_summary
 
 
 @login_required(login_url='login')
@@ -23,10 +25,14 @@ def upload_document(request):
             )
             document.uploaded_by = request.user
             document.save()
-            return redirect(
-                'document_detail',
-                document_id=document.id
-            )
+
+            if document.file.name.endswith('.pdf'):
+                text = extract_text_from_pdf(document.file.path)
+                document.summary = generate_summary(text)
+                document.ai_processed = True
+                document.save()
+
+            return redirect('dashboard')
 
     else:
         form = DocumentForm()

@@ -17,5 +17,9 @@ class Document(models.Model):
         auto_now_add=True
     )
 
+    summary = models.TextField(blank=True, null=True)
+
+    ai_processed = models.BooleanField(default=False)
+
     def __str__(self):
         return self.title
