@@ -7,14 +7,34 @@
 
 <h1>Login</h1>
 
-<form>
-    <input type="text" placeholder="Username">
+{% if error_message %}
+    <p style="color: red;">{{ error_message }}</p>
+{% endif %}
+
+<form method="POST">
+
+    {% csrf_token %}
+
+    <input
+        type="text"
+        name="username"
+        placeholder="Username"
+    >
+
     <br><br>
 
-    <input type="password" placeholder="Password">
+    <input
+        type="password"
+        name="password"
+        placeholder="Password"
+    >
+
     <br><br>
 
-    <button type="submit">Login</button>
+    <button type="submit">
+        Login
+    </button>
+
 </form>
 
 </body>

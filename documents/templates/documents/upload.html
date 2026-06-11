@@ -1,20 +1,20 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Register</title>
+    <title>Upload Document</title>
 </head>
 <body>
 
-<h1>Register</h1>
+<h1>Upload Document</h1>
 
-<form method="POST">
+<form method="POST" enctype="multipart/form-data">
 
     {% csrf_token %}
 
     {{ form.as_p }}
 
     <button type="submit">
-        Register
+        Upload
     </button>
 
 </form>

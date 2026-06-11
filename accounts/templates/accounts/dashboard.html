@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+<title>StudentAI Dashboard</title>
+
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css" rel="stylesheet">
+
+</head>
+
+<body>
+
+<nav class="navbar navbar-dark bg-dark">
+
+<div class="container">
+
+<span class="navbar-brand">
+StudentAI
+</span>
+
+<a href="/logout/" class="btn btn-danger">
+Logout
+</a>
+
+</div>
+
+</nav>
+
+<div class="container mt-5">
+
+<h2>
+Mirë se erdhe, {{ request.user.username }}
+</h2>
+
+<hr>
+
+<div class="row">
+
+<div class="col-md-4">
+
+<div class="card">
+
+<div class="card-body">
+
+<h5>Leksionet</h5>
+
+<h2>0</h2>
+
+</div>
+
+</div>
+
+</div>
+
+<div class="col-md-4">
+
+<div class="card">
+
+<div class="card-body">
+
+<h5>Quiz-et</h5>
+
+<h2>0</h2>
+
+</div>
+
+</div>
+
+</div>
+
+<div class="col-md-4">
+
+<div class="card">
+
+<div class="card-body">
+
+<h5>Dokumentet</h5>
+
+<h1>{{ documents_count }}</h1>
+
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+</div>
+<a href="{% url 'upload_document' %}" class="btn btn-primary">
+    Upload Document
+</a>
+
+</body>
+</html>

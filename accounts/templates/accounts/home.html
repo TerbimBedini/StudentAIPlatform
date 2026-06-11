@@ -2,13 +2,42 @@
 <html>
 <head>
     <title>Student AI Platform</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="{% url 'home' %}">StudentAI</a>
 
-    <h1>Student AI Platform</h1>
+            <div class="ms-auto">
+                {% if user.is_authenticated %}
+                    <span class="text-light me-3">{{ user.username }}</span>
+                    <a href="{% url 'logout' %}" class="btn btn-outline-light">Logout</a>
+                {% else %}
+                    <a href="{% url 'login' %}" class="btn btn-outline-light me-2">Login</a>
+                    <a href="{% url 'register' %}" class="btn btn-primary">Register</a>
+                {% endif %}
+            </div>
+        </div>
+    </nav>
 
-    <a href="/login/">Login</a>
-    <a href="/register/">Register</a>
+    <section class="container text-center mt-5">
+        <h1>Studyo me shpejt me AI</h1>
 
+        <p>
+            Ngarko leksione, permbledh materiale,
+            bej pyetje dhe pergatitu per provime.
+        </p>
+
+        {% if user.is_authenticated %}
+            <a href="{% url 'logout' %}" class="btn btn-outline-primary btn-lg">
+                Logout
+            </a>
+        {% else %}
+            <a href="{% url 'register' %}" class="btn btn-primary btn-lg">
+                Fillo Falas
+            </a>
+        {% endif %}
+    </section>
 </body>
 </html>
