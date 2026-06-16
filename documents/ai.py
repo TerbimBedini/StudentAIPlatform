@@ -1,4 +1,5 @@
 import os
+import random
 import requests
 
 
@@ -108,6 +109,54 @@ Teksti:
             "stream": False,
             "options": {
                 "num_predict": 600
+            }
+        },
+        timeout=300
+    )
+
+
+def generate_flashcards(document_text):
+    focus_options = [
+        'konceptet kryesore',
+        'perkufizimet',
+        'shembujt dhe zbatimet',
+        'shkaqet dhe pasojat',
+        'detajet qe studenti mund t\'i harroje',
+        'krahasimet mes ideve'
+    ]
+    focus = random.choice(focus_options)
+
+    text_limit = 2500
+    if len(document_text) > text_limit:
+        max_start = max(0, len(document_text) - text_limit)
+        start = random.randint(0, max_start)
+        selected_text = document_text[start:start + text_limit]
+    else:
+        selected_text = document_text
+
+    prompt = f"""
+Ti je asistent akademik per studente shqiptare.
+
+Bazuar ne tekstin me poshte, krijo 10 flashcards per perseritje.
+Perdor vetem informacion nga teksti.
+Per kete set fokusohu te: {focus}.
+Krijo pyetje te ndryshme dhe mos perdor gjithmone te njejten renditje.
+
+Formati:
+1. Pyetje: ...
+   Pergjigje: ...
+
+Teksti:
+{selected_text}
+"""
+
+    return ollama_generate(
+        {
+            "model": "gemma3:4b",
+            "prompt": prompt,
+            "stream": False,
+            "options": {
+                "num_predict": 500
             }
         },
         timeout=300

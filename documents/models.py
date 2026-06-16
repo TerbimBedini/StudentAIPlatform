@@ -27,6 +27,56 @@ class Document(models.Model):
         return self.title
 
 
+class Activity(models.Model):
+    ACTIVITY_TYPES = (
+        ('summary', 'Summary'),
+        ('chat', 'Chat'),
+        ('quiz', 'Quiz'),
+        ('flashcards', 'Flashcards'),
+    )
+
+    POINTS = {
+        'summary': 5,
+        'chat': 2,
+        'quiz': 10,
+        'flashcards': 5,
+    }
+
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='activities'
+    )
+
+    activity_type = models.CharField(
+        max_length=20,
+        choices=ACTIVITY_TYPES
+    )
+
+    document_title = models.CharField(max_length=255)
+
+    points = models.PositiveIntegerField(default=0)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    @property
+    def icon(self):
+        return {
+            'summary': '📝',
+            'chat': '🤖',
+            'quiz': '❓',
+            'flashcards': '📚',
+        }.get(self.activity_type, '•')
+
+    def save(self, *args, **kwargs):
+        if not self.points:
+            self.points = self.POINTS.get(self.activity_type, 0)
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f'{self.user} - {self.activity_type}'
+
+
 class QuizAttempt(models.Model):
     document = models.ForeignKey(
         Document,
@@ -58,3 +108,28 @@ class QuizAttempt(models.Model):
 
     def __str__(self):
         return f'{self.document.title} - {self.score}/{self.total}'
+
+
+class FlashcardAttempt(models.Model):
+    document = models.ForeignKey(
+        Document,
+        on_delete=models.CASCADE,
+        related_name='flashcard_attempts'
+    )
+
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='flashcard_attempts'
+    )
+
+    average_score = models.PositiveIntegerField()
+
+    category = models.CharField(max_length=100)
+
+    cards = models.JSONField(default=list, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f'{self.document.title} - {self.average_score}%'

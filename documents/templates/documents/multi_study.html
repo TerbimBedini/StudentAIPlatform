@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Perseritje me disa materiale</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .option-input {
+            display: none;
+        }
+
+        .option-label {
+            cursor: pointer;
+            transition: border-color 0.15s ease, background-color 0.15s ease;
+        }
+
+        .option-input:checked + .option-label {
+            border-color: #198754;
+            background-color: #e9f7ef;
+        }
+    </style>
+</head>
+<body>
+
+<nav class="navbar navbar-dark bg-dark">
+    <div class="container">
+        <a href="{% url 'dashboard' %}" class="navbar-brand">StudentAI</a>
+        <a href="{% url 'dashboard' %}" class="btn btn-outline-light btn-sm">Dashboard</a>
+    </div>
+</nav>
+
+<main class="container mt-5">
+    <h1 class="h3">Perseritje me disa materiale</h1>
+    <p class="text-muted">
+        Zgjidh disa dokumente dhe krijo Chat AI, Quiz ose Flashcards te pergjithshme.
+    </p>
+
+    {% if error_message %}
+        <div class="alert alert-warning">
+            {{ error_message }}
+        </div>
+    {% endif %}
+
+    <form method="POST" id="study-form" class="border rounded p-3 mb-4">
+        {% csrf_token %}
+
+        <h2 class="h5">Dokumentet</h2>
+
+        {% if documents %}
+            <div class="row g-2 mb-3">
+                {% for document in documents %}
+                    <div class="col-md-6">
+                        <label class="border rounded p-3 w-100">
+                            <input
+                                type="checkbox"
+                                name="documents"
+                                value="{{ document.id }}"
+                                {% if document.id|stringformat:"s" in selected_document_ids %}checked{% endif %}
+                            >
+                            <strong>{{ document.title }}</strong>
+                            <br>
+                            <span class="text-muted">{{ document.file.name }}</span>
+                        </label>
+                    </div>
+                {% endfor %}
+            </div>
+
+            <h2 class="h5">Veprimi</h2>
+            <div class="d-flex flex-wrap gap-2 mb-3">
+                <button class="btn btn-success" type="submit" name="action" value="chat">
+                    Pyet AI
+                </button>
+
+                <button class="btn btn-warning" type="submit" name="action" value="quiz">
+                    Gjenero Quiz
+                </button>
+
+                <button class="btn btn-info" type="submit" name="action" value="flashcards">
+                    Flashcards
+                </button>
+            </div>
+
+            <textarea
+                name="question"
+                class="form-control"
+                rows="3"
+                placeholder="Shkruaj pyetjen per Chat AI..."
+            >{{ question }}</textarea>
+        {% else %}
+            <div class="alert alert-info mb-0">
+                Nuk ke dokumente te ngarkuara.
+            </div>
+        {% endif %}
+    </form>
+
+    {% if selected_documents %}
+        <div class="alert alert-secondary">
+            <strong>Materialet e zgjedhura:</strong>
+            {% for document in selected_documents %}
+                {{ document.title }}{% if not forloop.last %}, {% endif %}
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    {% if answer %}
+        <div class="card mb-4">
+            <div class="card-header">Pergjigjja e AI</div>
+            <div class="card-body">{{ answer }}</div>
+        </div>
+    {% endif %}
+
+    {% if quiz_result %}
+        <div class="alert alert-success">
+            <h2 class="h5">Rezultati</h2>
+            <p class="mb-1">Pike: <strong>{{ quiz_result.score }}/{{ quiz_result.total }}</strong></p>
+            <p class="mb-0">Kategoria: <strong>{{ quiz_result.category }}</strong></p>
+        </div>
+
+        <div class="border rounded p-3 mb-4">
+            <h2 class="h5">Sugjerime per perseritje</h2>
+            <p class="mb-2">{{ quiz_result.advice }}</p>
+            {% if quiz_result.mistakes %}
+                <ul class="mb-0">
+                    {% for mistake in quiz_result.mistakes %}
+                        <li>{{ mistake.question }} <span class="text-muted">(e sakta: {{ mistake.answer }})</span></li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+        </div>
+    {% endif %}
+
+    {% if questions %}
+        <form method="POST" id="quiz-form">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="submit_quiz">
+
+            {% for document_id in selected_document_ids %}
+                <input type="hidden" name="documents" value="{{ document_id }}">
+            {% endfor %}
+
+            {% for question in questions %}
+                <section class="border rounded p-3 mb-3">
+                    <h2 class="h5">{{ forloop.counter }}. {{ question.question }}</h2>
+                    <div class="row g-2 mt-2">
+                        {% for key, option in question.options.items %}
+                            <div class="col-md-6">
+                                <input
+                                    class="option-input"
+                                    type="radio"
+                                    id="q{{ forloop.parentloop.counter0 }}_{{ key }}"
+                                    name="question_{{ forloop.parentloop.counter0 }}"
+                                    value="{{ key }}"
+                                    {% if question.selected == key %}checked{% endif %}
+                                    {% if quiz_result %}disabled{% endif %}
+                                >
+                                <label
+                                    class="option-label border rounded w-100 p-3 {% if quiz_result and key == question.answer %}border-success bg-success-subtle{% elif quiz_result and question.selected == key and not question.is_correct %}border-danger bg-danger-subtle{% endif %}"
+                                    for="q{{ forloop.parentloop.counter0 }}_{{ key }}"
+                                >
+                                    <strong>{{ key }}.</strong> {{ option }}
+                                    {% if quiz_result and key == question.answer %}
+                                        <span class="badge bg-success ms-2">E sakte</span>
+                                    {% elif quiz_result and question.selected == key and not question.is_correct %}
+                                        <span class="badge bg-danger ms-2">Gabim</span>
+                                    {% endif %}
+                                </label>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </section>
+            {% endfor %}
+
+            {% if not quiz_result %}
+                <button class="btn btn-success btn-lg" type="submit">
+                    Submit Quiz
+                </button>
+            {% endif %}
+        </form>
+    {% endif %}
+
+    {% if flashcard_results %}
+        <div class="alert alert-success">
+            <h2 class="h5">Vleresimi i pergjithshem</h2>
+            <p class="mb-1">Rezultati: <strong>{{ flashcard_results.average_score }}%</strong></p>
+            <p class="mb-0">Niveli: <strong>{{ flashcard_results.overall_label }}</strong></p>
+        </div>
+
+        {% for card in flashcard_results.cards %}
+            <section class="border rounded p-3 mb-3">
+                <h2 class="h5">{{ forloop.counter }}. {{ card.question }}</h2>
+                <p><strong>Pergjigjja jote:</strong> {{ card.user_answer|default:"Pa pergjigje" }}</p>
+                <p><strong>Pergjigjja model:</strong> {{ card.answer }}</p>
+                <div class="alert {% if card.evaluation.score >= 70 %}alert-success{% elif card.evaluation.score >= 40 %}alert-warning{% else %}alert-danger{% endif %} mb-0">
+                    <strong>{{ card.evaluation.label }} - {{ card.evaluation.score }}%</strong>
+                    <br>
+                    {{ card.evaluation.feedback }}
+                </div>
+            </section>
+        {% endfor %}
+    {% endif %}
+
+    {% if flashcards %}
+        <form method="POST" id="flashcards-form">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="submit_flashcards">
+
+            {% for document_id in selected_document_ids %}
+                <input type="hidden" name="documents" value="{{ document_id }}">
+            {% endfor %}
+
+            {% for card in flashcards %}
+                <section class="border rounded p-3 mb-3">
+                    <h2 class="h5">{{ forloop.counter }}. {{ card.question }}</h2>
+                    <textarea
+                        name="answer_{{ forloop.counter0 }}"
+                        class="form-control flashcard-answer"
+                        rows="3"
+                        placeholder="Shkruaj pergjigjen tende..."
+                    ></textarea>
+                </section>
+            {% endfor %}
+
+            <button class="btn btn-success btn-lg" type="submit">
+                Kontrollo pergjigjet
+            </button>
+        </form>
+    {% endif %}
+</main>
+
+<script>
+    const studyForm = document.getElementById('study-form');
+    if (studyForm) {
+        studyForm.addEventListener('submit', function (event) {
+            const button = event.submitter;
+            if (button) {
+                button.disabled = true;
+                button.textContent = 'Duke punuar...';
+            }
+        });
+    }
+
+    document.querySelectorAll('.flashcard-answer').forEach(function (textarea) {
+        textarea.addEventListener('input', function () {
+            const value = textarea.value;
+            if (value.length === 1) {
+                textarea.value = value.toUpperCase();
+            } else if (value.length > 1 && value[0] !== value[0].toUpperCase()) {
+                textarea.value = value[0].toUpperCase() + value.slice(1);
+            }
+        });
+    });
+</script>
+
+</body>
+</html>

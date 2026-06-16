@@ -1,17 +1,52 @@
 import json
 import mimetypes
+import random
 import re
 from pathlib import Path
 
 from django.contrib.auth.decorators import login_required
-from django.http import FileResponse, Http404
+from django.http import FileResponse, Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.clickjacking import xframe_options_sameorigin
 
-from .ai import AIError, ask_document_ai, generate_quiz, generate_summary
+from .ai import (
+    AIError,
+    ask_document_ai,
+    generate_flashcards,
+    generate_quiz,
+    generate_summary,
+)
 from .forms import DocumentForm
-from .models import Document, QuizAttempt
+from .models import Activity, Document, FlashcardAttempt, QuizAttempt
 from .utils import TextExtractionError, extract_text_from_document, extract_text_from_pdf
+
+
+def get_selected_documents(request, document_ids):
+    return Document.objects.filter(
+        id__in=document_ids,
+        uploaded_by=request.user
+    ).order_by('title')
+
+
+def combine_documents_text(documents):
+    text_parts = []
+
+    for document in documents:
+        text = extract_text_from_document(document.file.path)
+        if text:
+            text_parts.append(
+                f'Dokumenti: {document.title}\n{text}'
+            )
+
+    return '\n\n---\n\n'.join(text_parts)
+
+
+def record_activity(user, activity_type, document_title):
+    Activity.objects.create(
+        user=user,
+        activity_type=activity_type,
+        document_title=document_title
+    )
 
 
 def parse_quiz_response(raw_quiz):
@@ -113,6 +148,102 @@ def parse_text_quiz_response(raw_quiz):
     return questions
 
 
+def parse_flashcards_response(raw_flashcards):
+    blocks = re.split(r'\n\s*(?=\d+[\).]\s*)', raw_flashcards.strip())
+    flashcards = []
+
+    for block in blocks:
+        question_match = re.search(
+            r'Pyetje\s*:\s*(.+)',
+            block,
+            re.IGNORECASE
+        )
+        answer_match = re.search(
+            r'Pergjigje\s*:\s*(.+)',
+            block,
+            re.IGNORECASE | re.DOTALL
+        )
+
+        if not question_match or not answer_match:
+            continue
+
+        answer = answer_match.group(1).strip()
+        answer = re.sub(r'\n\s*\d+[\).].*$', '', answer, flags=re.DOTALL)
+
+        flashcards.append({
+            'question': question_match.group(1).strip(),
+            'answer': answer.strip()
+        })
+
+    return flashcards[:10]
+
+
+def normalize_answer_words(text):
+    common_words = {
+        'dhe', 'ose', 'ne', 'te', 'per', 'nga', 'me', 'pa', 'qe', 'si',
+        'eshte', 'jane', 'nje', 'kjo', 'ky', 'ajo', 'ai', 'tek', 'mbi',
+        'nuk', 'duhet', 'mund', 'ka', 'kane', 'duke'
+    }
+    words = re.findall(r'[a-zA-ZçÇëË]{3,}', text.lower())
+    return {
+        word
+        for word in words
+        if word not in common_words
+    }
+
+
+def evaluate_flashcard_answer(expected_answer, user_answer):
+    expected_words = normalize_answer_words(expected_answer)
+    user_words = normalize_answer_words(user_answer)
+
+    if not user_words:
+        return {
+            'score': 0,
+            'label': 'Pa pergjigje',
+            'feedback': 'Shkruaj nje pergjigje per te marre vleresim.'
+        }
+
+    if not expected_words:
+        return {
+            'score': 0,
+            'label': 'Nuk u vleresua',
+            'feedback': 'Pergjigjja model nuk ka fjale kyce te mjaftueshme.'
+        }
+
+    matched_words = expected_words & user_words
+    base_score = round((len(matched_words) / len(expected_words)) * 100)
+
+    important_match_count = len(matched_words)
+    short_answer_bonus = (
+        len(user_words) <= 4
+        and important_match_count >= 1
+    )
+
+    if short_answer_bonus:
+        score = max(base_score, 75)
+    elif important_match_count >= 2:
+        score = max(base_score, 60)
+    else:
+        score = base_score
+
+    if score >= 70:
+        label = 'Shume mire'
+        feedback = 'Thelbi i pergjigjes eshte kapur mire.'
+    elif score >= 40:
+        label = 'Pjeserisht mire'
+        feedback = 'Ke kapur nje pjese te pergjigjes, por duhet te shtosh disa fjale kyce.'
+    else:
+        label = 'Duhet perseritur'
+        feedback = 'Pergjigjja ka pak lidhje me pergjigjen model. Rilexo kete pjese te dokumentit.'
+
+    return {
+        'score': score,
+        'label': label,
+        'feedback': feedback,
+        'matched_words': sorted(matched_words)
+    }
+
+
 def quiz_category(score, total):
     percentage = (score / total) * 100 if total else 0
 
@@ -178,6 +309,7 @@ def upload_document(request):
                     document.summary = generate_summary(text)
                     document.ai_processed = True
                     document.save(update_fields=['summary', 'ai_processed'])
+                    record_activity(request.user, 'summary', document.title)
                 except (AIError, TextExtractionError):
                     document.ai_processed = False
                     document.save(update_fields=['ai_processed'])
@@ -218,6 +350,7 @@ def document_chat(request, document_id):
                     error_message = 'Nuk u gjet tekst i lexueshem ne kete dokument.'
                 else:
                     answer = ask_document_ai(text, question)
+                    record_activity(request.user, 'chat', document.title)
             except TextExtractionError as exc:
                 error_message = str(exc)
             except AIError as exc:
@@ -232,6 +365,209 @@ def document_chat(request, document_id):
             "question": question,
             "answer": answer,
             "error_message": error_message,
+        }
+    )
+
+
+@login_required(login_url='login')
+def document_chat_ask(request, document_id):
+    document = get_object_or_404(
+        Document,
+        id=document_id,
+        uploaded_by=request.user
+    )
+
+    if request.method != 'POST':
+        return JsonResponse(
+            {'error': 'Kerkesa duhet te jete POST.'},
+            status=405
+        )
+
+    question = request.POST.get('question', '').strip()
+    if not question:
+        return JsonResponse(
+            {'error': 'Shkruaj nje pyetje per dokumentin.'},
+            status=400
+        )
+
+    try:
+        text = extract_text_from_document(document.file.path)
+        if not text:
+            return JsonResponse(
+                {'error': 'Nuk u gjet tekst i lexueshem ne kete dokument.'},
+                status=400
+            )
+
+        answer = ask_document_ai(text, question)
+        record_activity(request.user, 'chat', document.title)
+
+        return JsonResponse({
+            'question': question,
+            'answer': answer
+        })
+    except TextExtractionError as exc:
+        return JsonResponse({'error': str(exc)}, status=400)
+    except AIError as exc:
+        return JsonResponse({'error': str(exc)}, status=503)
+
+
+@login_required(login_url='login')
+def multi_document_study(request):
+    documents = Document.objects.filter(
+        uploaded_by=request.user
+    ).order_by('-uploaded_at')
+    selected_documents = []
+    selected_document_ids = []
+    action = ''
+    question = ''
+    answer = None
+    questions = None
+    quiz_result = None
+    flashcards = None
+    flashcard_results = None
+    error_message = None
+
+    if request.method == 'POST':
+        action = request.POST.get('action', '')
+        selected_document_ids = request.POST.getlist('documents')
+        selected_documents = list(
+            get_selected_documents(request, selected_document_ids)
+        )
+
+        if action == 'submit_quiz':
+            questions = request.session.get('multi_document_quiz', [])
+            score = 0
+            submitted_questions = []
+            mistakes = []
+
+            for index, item in enumerate(questions):
+                selected = request.POST.get(f'question_{index}', '')
+                is_correct = selected == item['answer']
+
+                if is_correct:
+                    score += 1
+
+                submitted_questions.append({
+                    **item,
+                    'selected': selected,
+                    'is_correct': is_correct
+                })
+
+                if not is_correct:
+                    mistakes.append({
+                        'number': index + 1,
+                        'question': item['question'],
+                        'selected': selected or 'Pa pergjigje',
+                        'answer': item['answer']
+                    })
+
+            quiz_result = {
+                'score': score,
+                'total': len(questions),
+                'category': quiz_category(score, len(questions)),
+                'advice': quiz_study_advice(score, len(questions), mistakes),
+                'mistakes': mistakes
+            }
+            questions = submitted_questions
+
+        elif action == 'submit_flashcards':
+            flashcards = request.session.get('multi_document_flashcards', [])
+            cards = []
+            total_score = 0
+
+            for index, item in enumerate(flashcards):
+                user_answer = request.POST.get(f'answer_{index}', '').strip()
+                evaluation = evaluate_flashcard_answer(
+                    item['answer'],
+                    user_answer
+                )
+                total_score += evaluation['score']
+                cards.append({
+                    **item,
+                    'user_answer': user_answer,
+                    'evaluation': evaluation
+                })
+
+            average_score = round(total_score / len(flashcards)) if flashcards else 0
+            if average_score >= 70:
+                overall_label = 'Shume mire'
+            elif average_score >= 40:
+                overall_label = 'Mire, por ka vend per perseritje'
+            else:
+                overall_label = 'Duhet perseritur'
+
+            flashcard_results = {
+                'cards': cards,
+                'average_score': average_score,
+                'overall_label': overall_label
+            }
+
+        elif not selected_documents:
+            error_message = 'Zgjidh te pakten nje dokument.'
+
+        else:
+            try:
+                combined_text = combine_documents_text(selected_documents)
+
+                if not combined_text.strip():
+                    error_message = 'Nuk u gjet tekst i lexueshem ne dokumentet e zgjedhura.'
+                elif action == 'chat':
+                    question = request.POST.get('question', '').strip()
+                    if not question:
+                        error_message = 'Shkruaj nje pyetje per Chat AI.'
+                    else:
+                        answer = ask_document_ai(combined_text, question)
+                        record_activity(
+                            request.user,
+                            'chat',
+                            ', '.join(document.title for document in selected_documents)
+                        )
+                elif action == 'quiz':
+                    raw_quiz = generate_quiz(combined_text)
+                    questions = parse_quiz_response(raw_quiz)
+                    random.shuffle(questions)
+                    request.session['multi_document_quiz'] = questions
+                    if not questions:
+                        error_message = 'AI nuk arriti te gjeneroje quiz nga dokumentet e zgjedhura.'
+                    else:
+                        record_activity(
+                            request.user,
+                            'quiz',
+                            ', '.join(document.title for document in selected_documents)
+                        )
+                elif action == 'flashcards':
+                    raw_flashcards = generate_flashcards(combined_text)
+                    flashcards = parse_flashcards_response(raw_flashcards)
+                    random.shuffle(flashcards)
+                    request.session['multi_document_flashcards'] = flashcards
+                    if not flashcards:
+                        error_message = 'AI nuk arriti te gjeneroje flashcards nga dokumentet e zgjedhura.'
+                    else:
+                        record_activity(
+                            request.user,
+                            'flashcards',
+                            ', '.join(document.title for document in selected_documents)
+                        )
+            except TextExtractionError as exc:
+                error_message = str(exc)
+            except AIError as exc:
+                error_message = str(exc)
+
+    return render(
+        request,
+        'documents/multi_study.html',
+        {
+            'documents': documents,
+            'selected_document_ids': [str(id_value) for id_value in selected_document_ids],
+            'selected_documents': selected_documents,
+            'action': action,
+            'question': question,
+            'answer': answer,
+            'questions': questions,
+            'quiz_result': quiz_result,
+            'flashcards': flashcards,
+            'flashcard_results': flashcard_results,
+            'error_message': error_message
         }
     )
 
@@ -318,6 +654,8 @@ def document_quiz(request, document_id):
                         'Provo perseri ose ngarko nje dokument me tekst me te qarte.'
                     )
                     questions = []
+                else:
+                    record_activity(request.user, 'quiz', document.title)
 
             request.session[session_key] = questions
         except TextExtractionError as exc:
@@ -340,6 +678,104 @@ def document_quiz(request, document_id):
 
 
 @login_required(login_url='login')
+def document_flashcards(request, document_id):
+    document = get_object_or_404(
+        Document,
+        id=document_id,
+        uploaded_by=request.user
+    )
+
+    session_key = f'document_flashcards_{document.id}'
+    flashcards = request.session.get(session_key)
+    results = None
+    error_message = None
+
+    if request.method == 'POST':
+        action = request.POST.get('action')
+
+        if action == 'new':
+            request.session.pop(session_key, None)
+            return redirect('document_flashcards', document_id=document.id)
+
+        if not flashcards:
+            return redirect('document_flashcards', document_id=document.id)
+
+        results = []
+        total_score = 0
+
+        for index, flashcard in enumerate(flashcards):
+            user_answer = request.POST.get(f'answer_{index}', '').strip()
+            evaluation = evaluate_flashcard_answer(
+                flashcard['answer'],
+                user_answer
+            )
+            total_score += evaluation['score']
+            results.append({
+                **flashcard,
+                'user_answer': user_answer,
+                'evaluation': evaluation
+            })
+
+        average_score = round(total_score / len(flashcards)) if flashcards else 0
+        if average_score >= 70:
+            overall_label = 'Shume mire'
+        elif average_score >= 40:
+            overall_label = 'Mire, por ka vend per perseritje'
+        else:
+            overall_label = 'Duhet perseritur'
+
+        results = {
+            'cards': results,
+            'average_score': average_score,
+            'overall_label': overall_label
+        }
+        FlashcardAttempt.objects.create(
+            document=document,
+            user=request.user,
+            average_score=average_score,
+            category=overall_label,
+            cards=results['cards']
+        )
+
+    if request.method == 'GET' and not flashcards:
+        try:
+            text = extract_text_from_pdf(document.file.path)
+            if not text.strip():
+                error_message = 'Nuk u gjet tekst i lexueshem ne kete dokument.'
+                flashcards = []
+            else:
+                raw_flashcards = generate_flashcards(text)
+                flashcards = parse_flashcards_response(raw_flashcards)
+                random.shuffle(flashcards)
+                if not flashcards:
+                    error_message = (
+                        'AI nuk arriti te gjeneroje flashcards te vlefshme. '
+                        'Provo perseri.'
+                    )
+                    flashcards = []
+                else:
+                    record_activity(request.user, 'flashcards', document.title)
+            request.session[session_key] = flashcards
+        except TextExtractionError as exc:
+            error_message = str(exc)
+            flashcards = []
+        except AIError as exc:
+            error_message = str(exc)
+            flashcards = []
+
+    return render(
+        request,
+        'documents/flashcards.html',
+        {
+            'document': document,
+            'flashcards': flashcards,
+            'results': results,
+            'error_message': error_message
+        }
+    )
+
+
+@login_required(login_url='login')
 def quiz_history(request):
     attempts = QuizAttempt.objects.filter(
         user=request.user
@@ -354,6 +790,15 @@ def quiz_history(request):
     average_percentage = round(
         (total_score / total_questions) * 100
     ) if total_questions else 0
+    chart_attempts = list(reversed(list(attempts[:10])))
+    chart_labels = [
+        attempt.created_at.strftime('%d/%m')
+        for attempt in chart_attempts
+    ]
+    chart_scores = [
+        attempt.percentage
+        for attempt in chart_attempts
+    ]
 
     if total_attempts == 0:
         progress_message = 'Ende nuk ke kryer quiz-e.'
@@ -373,7 +818,57 @@ def quiz_history(request):
             'best_attempt': best_attempt,
             'latest_attempt': latest_attempt,
             'average_percentage': average_percentage,
-            'progress_message': progress_message
+            'progress_message': progress_message,
+            'chart_labels': chart_labels,
+            'chart_scores': chart_scores
+        }
+    )
+
+
+@login_required(login_url='login')
+def flashcard_history(request):
+    attempts = FlashcardAttempt.objects.filter(
+        user=request.user
+    ).select_related('document').order_by('-created_at')
+
+    total_attempts = attempts.count()
+    latest_attempt = attempts.first()
+    best_attempt = attempts.order_by('-average_score', '-created_at').first()
+    average_percentage = round(
+        sum(attempt.average_score for attempt in attempts) / total_attempts
+    ) if total_attempts else 0
+
+    chart_attempts = list(reversed(list(attempts[:10])))
+    chart_labels = [
+        attempt.created_at.strftime('%d/%m')
+        for attempt in chart_attempts
+    ]
+    chart_scores = [
+        attempt.average_score
+        for attempt in chart_attempts
+    ]
+
+    if total_attempts == 0:
+        progress_message = 'Ende nuk ke kryer flashcards.'
+    elif total_attempts == 1:
+        progress_message = 'Ke kryer setin e pare te flashcards. Vazhdo per te pare progresin.'
+    elif latest_attempt and best_attempt and latest_attempt.id == best_attempt.id:
+        progress_message = 'Rezultati yt i fundit eshte edhe me i miri deri tani.'
+    else:
+        progress_message = 'Perserit flashcards ku rezultati ishte me i ulet dhe provo perseri.'
+
+    return render(
+        request,
+        'documents/flashcard_history.html',
+        {
+            'attempts': attempts,
+            'total_attempts': total_attempts,
+            'latest_attempt': latest_attempt,
+            'best_attempt': best_attempt,
+            'average_percentage': average_percentage,
+            'progress_message': progress_message,
+            'chart_labels': chart_labels,
+            'chart_scores': chart_scores
         }
     )
 

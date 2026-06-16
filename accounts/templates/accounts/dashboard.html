@@ -41,6 +41,14 @@
                 Historiku i Quizeve
             </a>
 
+            <a href="{% url 'flashcard_history' %}" class="btn btn-outline-info">
+                Historiku i Flashcards
+            </a>
+
+            <a href="{% url 'multi_document_study' %}" class="btn btn-outline-dark">
+                Perseritje me disa materiale
+            </a>
+
             <a href="{% url 'upload_document' %}" class="btn btn-primary">
                 Upload Document
             </a>
@@ -49,12 +57,12 @@
 
     <hr>
 
-    <div class="row">
+    <div class="row g-3">
         <div class="col-md-4">
             <div class="card">
                 <div class="card-body">
-                    <h5>Leksionet</h5>
-                    <h2>0</h2>
+                    <h5>Dokumente</h5>
+                    <h2>{{ documents_count }}</h2>
                 </div>
             </div>
         </div>
@@ -62,8 +70,8 @@
         <div class="col-md-4">
             <div class="card">
                 <div class="card-body">
-                    <h5>Quiz-et</h5>
-                    <h2>{{ quiz_attempts_count }}</h2>
+                    <h5>Summary</h5>
+                    <h2>{{ summary_count }}</h2>
                 </div>
             </div>
         </div>
@@ -71,11 +79,66 @@
         <div class="col-md-4">
             <div class="card">
                 <div class="card-body">
-                    <h5>Dokumentet</h5>
-                    <h1>{{ documents_count }}</h1>
+                    <h5>Student Score</h5>
+                    <h2>🏆 {{ total_points }}</h2>
                 </div>
             </div>
         </div>
+    </div>
+
+    <div class="row g-3 mt-1">
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5>Chat AI</h5>
+                    <h2>{{ chat_count }}</h2>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5>Quiz</h5>
+                    <h2>{{ quiz_count }}</h2>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5>Flashcards</h5>
+                    <h2>{{ flashcards_count }}</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="mt-5">
+        <h3>Aktivitetet e Fundit</h3>
+
+        {% if activities %}
+            <div class="list-group mt-3">
+                {% for activity in activities %}
+                    <div class="list-group-item d-flex flex-wrap justify-content-between align-items-center gap-2">
+                        <div>
+                            <strong>{{ activity.icon }} {{ activity.get_activity_type_display }}</strong>
+                            <span class="text-muted">- {{ activity.document_title }}</span>
+                        </div>
+
+                        <div class="text-end">
+                            <span class="badge bg-primary">+{{ activity.points }} pike</span>
+                            <small class="text-muted ms-2">{{ activity.created_at|date:"d M Y H:i" }}</small>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="text-muted mt-3">
+                Ende nuk ka aktivitete AI.
+            </p>
+        {% endif %}
     </div>
 
     <div class="container mt-5">
@@ -118,6 +181,10 @@
 
                             <a href="{% url 'document_quiz' document.id %}" class="btn btn-warning btn-sm">
                                 📝 Gjenero Quiz
+                            </a>
+
+                            <a href="{% url 'document_flashcards' document.id %}" class="btn btn-info btn-sm">
+                                📚 Flashcards
                             </a>
                         </div>
                     </div>

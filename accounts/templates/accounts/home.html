@@ -3,13 +3,29 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Student AI Platform</title>
+    <title>StudentAI</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: #f6f8fb;
+        }
+
+        .hero {
+            background: #ffffff;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .feature-card {
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            height: 100%;
+        }
+    </style>
 </head>
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
         <div class="container">
-            <a class="navbar-brand" href="{% url 'home' %}">StudentAI</a>
+            <a class="navbar-brand fw-semibold" href="{% url 'home' %}">StudentAI</a>
 
             <div class="ms-auto">
                 {% if user.is_authenticated %}
@@ -24,23 +40,87 @@
         </div>
     </nav>
 
-    <section class="container text-center mt-5">
-        <h1>Studyo me shpejt me AI</h1>
+    <section class="hero py-5">
+        <div class="container py-4">
+            <div class="row align-items-center g-4">
+                <div class="col-lg-7">
+                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle mb-3">
+                        Studio me AI
+                    </span>
 
-        <p>
-            Ngarko leksione, permbledh materiale,
-            bej pyetje dhe pergatitu per provime.
-        </p>
+                    <h1 class="display-5 fw-bold">
+                        Studio me shpejt dhe pergatitu me mire.
+                    </h1>
 
-        {% if user.is_authenticated %}
-            <a href="{% url 'dashboard' %}" class="btn btn-primary btn-lg">
-                Dashboard
-            </a>
-        {% else %}
-            <a href="{% url 'register' %}" class="btn btn-primary btn-lg">
-                Fillo Falas
-            </a>
-        {% endif %}
+                    <p class="lead text-muted mt-3">
+                        Ngarko materiale, krijo permbledhje, bej pyetje, gjenero quiz-e dhe perserit me flashcards.
+                    </p>
+
+                    <div class="d-flex flex-wrap gap-2 mt-4">
+                        {% if user.is_authenticated %}
+                            <a href="{% url 'dashboard' %}" class="btn btn-primary btn-lg">
+                                Hyr ne Dashboard
+                            </a>
+                        {% else %}
+                            <a href="{% url 'register' %}" class="btn btn-primary btn-lg">
+                                Fillo Falas
+                            </a>
+                            <a href="{% url 'login' %}" class="btn btn-outline-secondary btn-lg">
+                                Login
+                            </a>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="col-lg-5">
+                    <div class="bg-light border rounded p-4">
+                        <div class="d-flex justify-content-between border-bottom pb-3 mb-3">
+                            <span class="fw-semibold">Dokumente</span>
+                            <span class="badge bg-success">AI Ready</span>
+                        </div>
+                        <p class="mb-2">Permbledhje automatike</p>
+                        <div class="progress mb-3" role="progressbar" aria-label="summary progress" aria-valuenow="78" aria-valuemin="0" aria-valuemax="100">
+                            <div class="progress-bar" style="width: 78%"></div>
+                        </div>
+                        <p class="mb-2">Quiz dhe Flashcards</p>
+                        <div class="progress" role="progressbar" aria-label="quiz progress" aria-valuenow="64" aria-valuemin="0" aria-valuemax="100">
+                            <div class="progress-bar bg-info" style="width: 64%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </section>
+
+    <main class="container py-5">
+        <div class="row g-3">
+            <div class="col-md-4">
+                <div class="feature-card bg-white p-4">
+                    <h2 class="h5">Pyet AI</h2>
+                    <p class="text-muted mb-0">
+                        Bej pyetje mbi nje dokument ose disa materiale bashke.
+                    </p>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="feature-card bg-white p-4">
+                    <h2 class="h5">Quiz</h2>
+                    <p class="text-muted mb-0">
+                        Testo veten me alternativa dhe shiko ku duhet te perserisesh.
+                    </p>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="feature-card bg-white p-4">
+                    <h2 class="h5">Flashcards</h2>
+                    <p class="text-muted mb-0">
+                        Shkruaj pergjigje me fjalet e tua dhe merr vleresim.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </main>
 </body>
 </html>

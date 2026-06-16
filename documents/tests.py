@@ -12,9 +12,10 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from .forms import DocumentForm
-from .models import Document, QuizAttempt
+from .models import Activity, Document, FlashcardAttempt, QuizAttempt
 from .utils import extract_text_from_docx, extract_text_from_pdf
 from .ai import AIError
+from .views import evaluate_flashcard_answer
 
 
 TEST_MEDIA_ROOT = tempfile.mkdtemp()
@@ -258,6 +259,193 @@ class DocumentTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'AI nuk u lidh dot me Ollama.')
 
+    @patch('documents.views.generate_flashcards')
+    def test_document_flashcards_shows_generated_flashcards(self, mock_generate_flashcards):
+        mock_generate_flashcards.return_value = '''
+        1. Pyetje: Cfare eshte AI?
+           Pergjigje: Inteligjence artificiale.
+        '''
+        user = User.objects.create_user(
+            username='flashcard_student',
+            password='password123'
+        )
+        path = self.create_pdf(text='AI eshte inteligjence artificiale')
+        document = Document.objects.create(
+            title='Leksion',
+            file=path.name,
+            uploaded_by=user
+        )
+        self.client.login(username='flashcard_student', password='password123')
+
+        response = self.client.get(reverse('document_flashcards', args=[document.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Flashcards AI')
+        self.assertContains(response, 'Cfare eshte AI?')
+
+        response = self.client.post(
+            reverse('document_flashcards', args=[document.id]),
+            {
+                'action': 'submit',
+                'answer_0': 'AI eshte inteligjence artificiale'
+            }
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Vleresimi i pergjithshem')
+        self.assertContains(response, 'Shume mire')
+        self.assertTrue(
+            FlashcardAttempt.objects.filter(
+                document=document,
+                user=user,
+                average_score__gte=70
+            ).exists()
+        )
+
+    def test_flashcard_history_shows_saved_attempts(self):
+        user = User.objects.create_user(
+            username='flash_history',
+            password='password123'
+        )
+        path = self.create_pdf(text='Material flashcards')
+        document = Document.objects.create(
+            title='Flash Leksion',
+            file=path.name,
+            uploaded_by=user
+        )
+        FlashcardAttempt.objects.create(
+            document=document,
+            user=user,
+            average_score=82,
+            category='Shume mire',
+            cards=[
+                {
+                    'question': 'Cfare duhet perseritur?',
+                    'evaluation': {'score': 35}
+                }
+            ]
+        )
+        self.client.login(username='flash_history', password='password123')
+
+        response = self.client.get(reverse('flashcard_history'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Historiku i Flashcards')
+        self.assertContains(response, '82%')
+        self.assertContains(response, 'Grafiku i progresit')
+        self.assertContains(response, 'Cfare duhet perseritur?')
+
+    def test_flashcard_evaluation_accepts_short_keyword_answer(self):
+        result = evaluate_flashcard_answer(
+            'Permbledhja ruhet ne databaze dhe shfaqet ne dashboard.',
+            'ne databaze'
+        )
+
+        self.assertGreaterEqual(result['score'], 70)
+        self.assertEqual(result['label'], 'Shume mire')
+
+    @patch('documents.views.ask_document_ai')
+    def test_multi_document_study_chat_uses_selected_documents(self, mock_ask_document_ai):
+        mock_ask_document_ai.return_value = 'Pergjigje nga disa materiale.'
+        user = User.objects.create_user(
+            username='multi_student',
+            password='password123'
+        )
+        first_path = self.create_pdf(text='Materiali i pare per AI')
+        second_path = self.create_pdf(text='Materiali i dyte per provim')
+        first_document = Document.objects.create(
+            title='Materiali 1',
+            file=first_path.name,
+            uploaded_by=user
+        )
+        second_document = Document.objects.create(
+            title='Materiali 2',
+            file=second_path.name,
+            uploaded_by=user
+        )
+        self.client.login(username='multi_student', password='password123')
+
+        response = self.client.post(
+            reverse('multi_document_study'),
+            {
+                'documents': [first_document.id, second_document.id],
+                'action': 'chat',
+                'question': 'Cfare duhet te perseris?'
+            }
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Pergjigje nga disa materiale.')
+        prompt_text = mock_ask_document_ai.call_args.args[0]
+        self.assertIn('Materiali i pare per AI', prompt_text)
+        self.assertIn('Materiali i dyte per provim', prompt_text)
+
+    @patch('documents.views.ask_document_ai')
+    def test_chat_records_activity_and_dashboard_score(self, mock_ask_document_ai):
+        mock_ask_document_ai.return_value = 'Pergjigje AI.'
+        user = User.objects.create_user(
+            username='activity_student',
+            password='password123'
+        )
+        path = self.create_pdf(text='Material per aktivitet')
+        document = Document.objects.create(
+            title='Aktivitet',
+            file=path.name,
+            uploaded_by=user
+        )
+        self.client.login(username='activity_student', password='password123')
+
+        response = self.client.post(
+            reverse('document_chat', args=[document.id]),
+            {'question': 'Cfare ka materiali?'}
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(
+            Activity.objects.filter(
+                user=user,
+                activity_type='chat',
+                document_title='Aktivitet',
+                points=2
+            ).exists()
+        )
+
+        response = self.client.get(reverse('dashboard'))
+
+        self.assertContains(response, 'Student Score')
+        self.assertContains(response, '+2 pike')
+
+    @patch('documents.views.ask_document_ai')
+    def test_document_chat_ask_returns_json_answer(self, mock_ask_document_ai):
+        mock_ask_document_ai.return_value = 'Pergjigje pa reload.'
+        user = User.objects.create_user(
+            username='ajax_student',
+            password='password123'
+        )
+        path = self.create_pdf(text='Material per ajax chat')
+        document = Document.objects.create(
+            title='Ajax Chat',
+            file=path.name,
+            uploaded_by=user
+        )
+        self.client.login(username='ajax_student', password='password123')
+
+        response = self.client.post(
+            reverse('document_chat_ask', args=[document.id]),
+            {'question': 'Cfare ka dokumenti?'},
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest'
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['answer'], 'Pergjigje pa reload.')
+        self.assertTrue(
+            Activity.objects.filter(
+                user=user,
+                activity_type='chat',
+                document_title='Ajax Chat'
+            ).exists()
+        )
+
     def test_quiz_history_shows_saved_attempts(self):
         user = User.objects.create_user(
             username='student3',
@@ -291,4 +479,5 @@ class DocumentTests(TestCase):
         self.assertContains(response, 'Historiku i Quizeve')
         self.assertContains(response, '80%')
         self.assertContains(response, 'Super')
+        self.assertContains(response, 'Grafiku i progresit')
         self.assertContains(response, 'Cfare duhet perseritur?')

@@ -2,7 +2,7 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect
 from .forms import RegisterForm
-from documents.models import Document, QuizAttempt
+from documents.models import Activity, Document, FlashcardAttempt, QuizAttempt
 
 
 def home(request):
@@ -60,12 +60,22 @@ def dashboard(request):
     documents = Document.objects.filter(
         uploaded_by=request.user
     ).order_by('-uploaded_at')
+    activities = Activity.objects.filter(
+        user=request.user
+    ).order_by('-created_at')
 
 
     context = {
         'documents': documents,
         'documents_count': documents.count(),
-        'quiz_attempts_count': QuizAttempt.objects.filter(user=request.user).count()
+        'quiz_attempts_count': QuizAttempt.objects.filter(user=request.user).count(),
+        'flashcard_attempts_count': FlashcardAttempt.objects.filter(user=request.user).count(),
+        'activities': activities[:10],
+        'summary_count': activities.filter(activity_type='summary').count(),
+        'chat_count': activities.filter(activity_type='chat').count(),
+        'quiz_count': activities.filter(activity_type='quiz').count(),
+        'flashcards_count': activities.filter(activity_type='flashcards').count(),
+        'total_points': sum(activity.points for activity in activities),
     }
 
     return render(
