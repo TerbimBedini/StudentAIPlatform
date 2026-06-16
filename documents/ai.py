@@ -1,20 +1,47 @@
+import os
 import requests
+
+
+OLLAMA_URL = os.environ.get(
+    'OLLAMA_URL',
+    'http://localhost:11434/api/generate'
+)
+
+
+class AIError(Exception):
+    pass
+
+
+def ollama_generate(payload, timeout):
+    try:
+        response = requests.post(
+            OLLAMA_URL,
+            json=payload,
+            timeout=timeout
+        )
+        response.raise_for_status()
+        return response.json().get("response", "")
+    except requests.RequestException as exc:
+        raise AIError(
+            'AI nuk u lidh dot me Ollama. Kontrollo qe Ollama te jete hapur dhe modeli gemma3:4b te jete i ngarkuar.'
+        ) from exc
+    except ValueError as exc:
+        raise AIError('Ollama ktheu nje pergjigje te pavlefshme.') from exc
 
 
 def generate_summary(text):
     prompt = f"""
-Ti je asistent akademik për studentë shqiptarë.
+Ti je asistent akademik per studente shqiptare.
 
-Përmblidhe tekstin më poshtë në shqip të pastër.
-Përdor fjali të qarta, pika kryesore dhe stil universitar.
+Permblidhe tekstin me poshte ne shqip te paster.
+Perdor fjali te qarta, pika kryesore dhe stil universitar.
 
 Teksti:
 {text[:4000]}
 """
 
-    response = requests.post(
-        "http://localhost:11434/api/generate",
-        json={
+    return ollama_generate(
+        {
             "model": "gemma3:4b",
             "prompt": prompt,
             "stream": False
@@ -22,35 +49,66 @@ Teksti:
         timeout=300
     )
 
-    return response.json()["response"]
-
 
 def ask_document_ai(document_text, question):
     prompt = f"""
-Ti je asistent akademik për studentë shqiptarë.
+Ti je asistent akademik per studente shqiptare.
 
-Përgjigju pyetjes vetëm duke u bazuar në tekstin e dokumentit.
-Nëse përgjigjja nuk gjendet në tekst, thuaj:
-"Ky informacion nuk gjendet qartë në dokument."
+Pergjigju pyetjes vetem duke u bazuar ne tekstin e dokumentit.
+Nese pergjigjja nuk gjendet ne tekst, thuaj:
+"Ky informacion nuk gjendet qarte ne dokument."
 
 Teksti i dokumentit:
-{document_text[:4000]}
+{document_text[:2500]}
 
 Pyetja:
 {question}
 """
 
-    response = requests.post(
-        "http://localhost:11434/api/generate",
-        json={
+    return ollama_generate(
+        {
             "model": "gemma3:4b",
             "prompt": prompt,
             "stream": False,
             "options": {
-                "num_predict": 200
+                "num_predict": 140
             }
         },
         timeout=600
     )
 
-    return response.json().get("response", "")
+
+def generate_quiz(document_text):
+    prompt = f"""
+Ti je pedagog universitar.
+
+Krijo 10 pyetje me alternativa VETEM nga teksti i dokumentit me poshte.
+Mos perdor njohuri te pergjithshme.
+Mos shpik tema, emra, fakte ose pyetje qe nuk mbeshteten ne tekst.
+Nese teksti nuk mjafton per 10 pyetje, krijo aq pyetje sa mbeshteten qarte ne tekst.
+Cdo pyetje duhet te lidhet drejtpersedrejti me nje fakt, koncept ose fjali nga dokumenti.
+
+Formati:
+
+1. Pyetja
+A) Alternativa
+B) Alternativa
+C) Alternativa
+D) Alternativa
+Pergjigjja e sakte: A
+
+Teksti:
+{document_text[:3000]}
+"""
+
+    return ollama_generate(
+        {
+            "model": "gemma3:4b",
+            "prompt": prompt,
+            "stream": False,
+            "options": {
+                "num_predict": 600
+            }
+        },
+        timeout=300
+    )

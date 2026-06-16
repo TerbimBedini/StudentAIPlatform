@@ -38,6 +38,12 @@
     <h2>Pyet AI per dokumentin</h2>
     <p><strong>Dokumenti:</strong> {{ document.title }}</p>
 
+    {% if error_message %}
+        <div class="alert alert-warning">
+            {{ error_message }}
+        </div>
+    {% endif %}
+
     <form method="POST" id="question-form">
         {% csrf_token %}
 
@@ -50,7 +56,7 @@
         >{{ question }}</textarea>
 
         <div class="d-flex flex-wrap gap-2 mt-3">
-            <button class="btn btn-success" type="submit">
+            <button class="btn btn-success" type="submit" id="submit-button">
                 Pyet AI
             </button>
 
@@ -74,12 +80,19 @@
 
 <script>
     const questionInput = document.getElementById('question');
+    const questionForm = document.getElementById('question-form');
+    const submitButton = document.getElementById('submit-button');
 
     questionInput.addEventListener('keydown', function (event) {
         if (event.key === 'Enter' && !event.shiftKey) {
             event.preventDefault();
             questionInput.form.requestSubmit();
         }
+    });
+
+    questionForm.addEventListener('submit', function () {
+        submitButton.disabled = true;
+        submitButton.textContent = 'Duke pritur AI...';
     });
 </script>
 

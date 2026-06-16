@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Quiz AI</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .option-input {
+            display: none;
+        }
+
+        .option-label {
+            cursor: pointer;
+            transition: border-color 0.15s ease, background-color 0.15s ease;
+        }
+
+        .option-input:checked + .option-label {
+            border-color: #198754;
+            background-color: #e9f7ef;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container mt-5">
+    <div class="d-flex flex-wrap gap-2 mb-3">
+        <a href="/dashboard/" class="btn btn-secondary">
+            Kthehu te Dashboard
+        </a>
+
+        <form method="POST" class="m-0">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="new">
+            <button class="btn btn-warning" type="submit">
+                Gjenero Quiz te ri
+            </button>
+        </form>
+    </div>
+
+    <h2>Quiz AI</h2>
+
+    <h5 class="text-muted">
+        {{ document.title }}
+    </h5>
+
+    <p class="text-muted">
+        Pyetjet gjenerohen vetem nga teksti i ketij dokumenti.
+    </p>
+
+    <hr>
+
+    {% if error_message %}
+        <div class="alert alert-warning">
+            {{ error_message }}
+        </div>
+    {% endif %}
+
+    {% if result %}
+        <div class="alert alert-success">
+            <h3 class="h5 mb-2">Rezultati</h3>
+            <p class="mb-1">
+                Pike: <strong>{{ result.score }}/{{ result.total }}</strong>
+            </p>
+            <p class="mb-0">
+                Kategoria: <strong>{{ result.category }}</strong>
+            </p>
+        </div>
+
+        <div class="border rounded p-3 mb-4">
+            <h3 class="h5">Sugjerime per perseritje</h3>
+            <p class="mb-3">
+                {{ result.advice }}
+            </p>
+
+            {% if result.mistakes %}
+                <p class="fw-semibold mb-2">
+                    Fokusohu te keto pyetje/tema:
+                </p>
+                <ul class="mb-0">
+                    {% for mistake in result.mistakes %}
+                        <li>
+                            Pyetja {{ mistake.number }}: {{ mistake.question }}
+                            <span class="text-muted">
+                                (zgjedhja jote: {{ mistake.selected }}, e sakta: {{ mistake.answer }})
+                            </span>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p class="mb-0 text-success">
+                    Nuk ke gabime ne kete quiz.
+                </p>
+            {% endif %}
+        </div>
+    {% endif %}
+
+    {% if questions %}
+        <form method="POST" id="quiz-form">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="submit">
+
+            {% for question in questions %}
+                <section class="border rounded p-3 mb-3">
+                    <h3 class="h5">
+                        {{ forloop.counter }}. {{ question.question }}
+                    </h3>
+
+                    <div class="row g-2 mt-2">
+                        {% for key, option in question.options.items %}
+                            <div class="col-md-6">
+                                <input
+                                    class="option-input"
+                                    type="radio"
+                                    id="q{{ forloop.parentloop.counter0 }}_{{ key }}"
+                                    name="question_{{ forloop.parentloop.counter0 }}"
+                                    value="{{ key }}"
+                                    {% if question.selected == key %}checked{% endif %}
+                                    {% if result %}disabled{% endif %}
+                                >
+
+                                <label
+                                    class="option-label border rounded w-100 p-3 {% if result and key == question.answer %}border-success bg-success-subtle{% elif result and question.selected == key and not question.is_correct %}border-danger bg-danger-subtle{% endif %}"
+                                    for="q{{ forloop.parentloop.counter0 }}_{{ key }}"
+                                >
+                                    <strong>{{ key }}.</strong> {{ option }}
+
+                                    {% if result and key == question.answer %}
+                                        <span class="badge bg-success ms-2">E sakte</span>
+                                    {% elif result and question.selected == key and not question.is_correct %}
+                                        <span class="badge bg-danger ms-2">Gabim</span>
+                                    {% endif %}
+                                </label>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </section>
+            {% endfor %}
+
+            {% if not result %}
+                <button type="submit" class="btn btn-success btn-lg" id="quiz-submit-button">
+                    Submit Quiz
+                </button>
+            {% endif %}
+        </form>
+    {% elif not error_message %}
+        <div class="alert alert-info">
+            Duke gjeneruar quiz-in nga AI. Nese faqja vonon, prit pak sepse modeli lokal mund te marre kohe.
+        </div>
+    {% endif %}
+</div>
+
+<script>
+    const quizForm = document.getElementById('quiz-form');
+    const quizSubmitButton = document.getElementById('quiz-submit-button');
+
+    if (quizForm && quizSubmitButton) {
+        quizForm.addEventListener('submit', function () {
+            quizSubmitButton.disabled = true;
+            quizSubmitButton.textContent = 'Duke kontrolluar...';
+        });
+    }
+</script>
+
+</body>
+</html>

@@ -2,7 +2,7 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect
 from .forms import RegisterForm
-from documents.models import Document
+from documents.models import Document, QuizAttempt
 
 
 def home(request):
@@ -64,7 +64,8 @@ def dashboard(request):
 
     context = {
         'documents': documents,
-        'documents_count': documents.count()
+        'documents_count': documents.count(),
+        'quiz_attempts_count': QuizAttempt.objects.filter(user=request.user).count()
     }
 
     return render(
