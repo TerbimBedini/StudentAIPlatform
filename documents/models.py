@@ -1,4 +1,4 @@
-from django.db import models
+﻿from django.db import models
 from django.contrib.auth.models import User
 
 class Document(models.Model):
@@ -62,11 +62,11 @@ class Activity(models.Model):
     @property
     def icon(self):
         return {
-            'summary': '📝',
-            'chat': '🤖',
-            'quiz': '❓',
-            'flashcards': '📚',
-        }.get(self.activity_type, '•')
+            'summary': 'Summary',
+            'chat': 'Chat',
+            'quiz': 'Quiz',
+            'flashcards': 'Flashcards',
+        }.get(self.activity_type, 'Activity')
 
     def save(self, *args, **kwargs):
         if not self.points:
@@ -133,3 +133,4 @@ class FlashcardAttempt(models.Model):
 
     def __str__(self):
         return f'{self.document.title} - {self.average_score}%'
+

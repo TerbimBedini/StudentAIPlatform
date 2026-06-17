@@ -234,6 +234,12 @@
         studyForm.addEventListener('submit', function (event) {
             const button = event.submitter;
             if (button) {
+                const actionInput = document.createElement('input');
+                actionInput.type = 'hidden';
+                actionInput.name = button.name;
+                actionInput.value = button.value;
+                studyForm.appendChild(actionInput);
+
                 button.disabled = true;
                 button.textContent = 'Duke punuar...';
             }

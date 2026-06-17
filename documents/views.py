@@ -18,7 +18,7 @@ from .ai import (
 )
 from .forms import DocumentForm
 from .models import Activity, Document, FlashcardAttempt, QuizAttempt
-from .utils import TextExtractionError, extract_text_from_document, extract_text_from_pdf
+from .utils import TextExtractionError, extract_text_from_document
 
 
 def get_selected_documents(request, document_ids):
@@ -303,9 +303,9 @@ def upload_document(request):
             document.uploaded_by = request.user
             document.save()
 
-            if document.file.name.endswith('.pdf'):
+            if document.file.name.lower().endswith(('.pdf', '.docx')):
                 try:
-                    text = extract_text_from_pdf(document.file.path)
+                    text = extract_text_from_document(document.file.path)
                     document.summary = generate_summary(text)
                     document.ai_processed = True
                     document.save(update_fields=['summary', 'ai_processed'])
@@ -412,6 +412,195 @@ def document_chat_ask(request, document_id):
 
 
 @login_required(login_url='login')
+def document_study(request, document_id):
+    document = get_object_or_404(
+        Document,
+        id=document_id,
+        uploaded_by=request.user
+    )
+    quiz_session_key = f'study_quiz_{document.id}'
+    flashcard_session_key = f'study_flashcards_{document.id}'
+    active_tab = request.POST.get('active_tab', 'document')
+    file_extension = document.file.name.rsplit('.', 1)[-1].lower()
+
+    chat_question = ''
+    chat_answer = None
+    questions = request.session.get(quiz_session_key)
+    quiz_result = None
+    flashcards = request.session.get(flashcard_session_key)
+    flashcard_results = None
+    error_message = None
+
+    if request.method == 'POST':
+        action = request.POST.get('action')
+
+        if action == 'chat':
+            active_tab = 'chat'
+            chat_question = request.POST.get('question', '').strip()
+            if not chat_question:
+                error_message = 'Shkruaj nje pyetje per dokumentin.'
+            else:
+                try:
+                    text = extract_text_from_document(document.file.path)
+                    chat_answer = ask_document_ai(text, chat_question)
+                    record_activity(request.user, 'chat', document.title)
+                except TextExtractionError as exc:
+                    error_message = str(exc)
+                except AIError as exc:
+                    error_message = str(exc)
+
+        elif action == 'generate_quiz':
+            active_tab = 'quiz'
+            request.session.pop(quiz_session_key, None)
+            try:
+                text = extract_text_from_document(document.file.path)
+                raw_quiz = generate_quiz(text)
+                questions = parse_quiz_response(raw_quiz)
+                random.shuffle(questions)
+                if questions:
+                    request.session[quiz_session_key] = questions
+                    record_activity(request.user, 'quiz', document.title)
+                else:
+                    error_message = 'AI nuk arriti te gjeneroje quiz te vlefshem.'
+                    questions = []
+            except TextExtractionError as exc:
+                error_message = str(exc)
+                questions = []
+            except AIError as exc:
+                error_message = str(exc)
+                questions = []
+
+        elif action == 'submit_quiz':
+            active_tab = 'quiz'
+            if not questions:
+                error_message = 'Gjenero nje quiz para se te besh submit.'
+            else:
+                score = 0
+                submitted_questions = []
+                mistakes = []
+
+                for index, question in enumerate(questions):
+                    selected = request.POST.get(f'question_{index}', '')
+                    is_correct = selected == question['answer']
+
+                    if is_correct:
+                        score += 1
+
+                    submitted_questions.append({
+                        **question,
+                        'selected': selected,
+                        'is_correct': is_correct
+                    })
+
+                    if not is_correct:
+                        mistakes.append({
+                            'number': index + 1,
+                            'question': question['question'],
+                            'selected': selected or 'Pa pergjigje',
+                            'answer': question['answer']
+                        })
+
+                quiz_result = {
+                    'score': score,
+                    'total': len(questions),
+                    'category': quiz_category(score, len(questions)),
+                    'advice': quiz_study_advice(score, len(questions), mistakes),
+                    'mistakes': mistakes
+                }
+                QuizAttempt.objects.create(
+                    document=document,
+                    user=request.user,
+                    score=score,
+                    total=len(questions),
+                    category=quiz_result['category'],
+                    mistakes=mistakes
+                )
+                questions = submitted_questions
+
+        elif action == 'generate_flashcards':
+            active_tab = 'flashcards'
+            request.session.pop(flashcard_session_key, None)
+            try:
+                text = extract_text_from_document(document.file.path)
+                raw_flashcards = generate_flashcards(text)
+                flashcards = parse_flashcards_response(raw_flashcards)
+                random.shuffle(flashcards)
+                if flashcards:
+                    request.session[flashcard_session_key] = flashcards
+                    record_activity(request.user, 'flashcards', document.title)
+                else:
+                    error_message = 'AI nuk arriti te gjeneroje flashcards te vlefshme.'
+                    flashcards = []
+            except TextExtractionError as exc:
+                error_message = str(exc)
+                flashcards = []
+            except AIError as exc:
+                error_message = str(exc)
+                flashcards = []
+
+        elif action == 'submit_flashcards':
+            active_tab = 'flashcards'
+            if not flashcards:
+                error_message = 'Gjenero flashcards para se te kontrollosh pergjigjet.'
+            else:
+                cards = []
+                total_score = 0
+
+                for index, flashcard in enumerate(flashcards):
+                    user_answer = request.POST.get(f'answer_{index}', '').strip()
+                    evaluation = evaluate_flashcard_answer(
+                        flashcard['answer'],
+                        user_answer
+                    )
+                    total_score += evaluation['score']
+                    cards.append({
+                        **flashcard,
+                        'user_answer': user_answer,
+                        'evaluation': evaluation
+                    })
+
+                average_score = round(total_score / len(flashcards)) if flashcards else 0
+                if average_score >= 70:
+                    overall_label = 'Shume mire'
+                elif average_score >= 40:
+                    overall_label = 'Mire, por ka vend per perseritje'
+                else:
+                    overall_label = 'Duhet perseritur'
+
+                flashcard_results = {
+                    'cards': cards,
+                    'average_score': average_score,
+                    'overall_label': overall_label
+                }
+                FlashcardAttempt.objects.create(
+                    document=document,
+                    user=request.user,
+                    average_score=average_score,
+                    category=overall_label,
+                    cards=cards
+                )
+                flashcards = cards
+
+    return render(
+        request,
+        'documents/study.html',
+        {
+            'document': document,
+            'file_extension': file_extension,
+            'is_pdf': file_extension == 'pdf',
+            'active_tab': active_tab,
+            'chat_question': chat_question,
+            'chat_answer': chat_answer,
+            'questions': questions,
+            'quiz_result': quiz_result,
+            'flashcards': flashcards,
+            'flashcard_results': flashcard_results,
+            'error_message': error_message
+        }
+    )
+
+
+@login_required(login_url='login')
 def multi_document_study(request):
     documents = Document.objects.filter(
         uploaded_by=request.user
@@ -501,6 +690,7 @@ def multi_document_study(request):
                 'average_score': average_score,
                 'overall_label': overall_label
             }
+            flashcards = []
 
         elif not selected_documents:
             error_message = 'Zgjidh te pakten nje dokument.'
@@ -640,7 +830,7 @@ def document_quiz(request, document_id):
 
     if request.method == 'GET' and not questions:
         try:
-            text = extract_text_from_pdf(document.file.path)
+            text = extract_text_from_document(document.file.path)
             if not text.strip():
                 error_message = 'Nuk u gjet tekst i lexueshem ne kete dokument.'
                 questions = []
@@ -739,7 +929,7 @@ def document_flashcards(request, document_id):
 
     if request.method == 'GET' and not flashcards:
         try:
-            text = extract_text_from_pdf(document.file.path)
+            text = extract_text_from_document(document.file.path)
             if not text.strip():
                 error_message = 'Nuk u gjet tekst i lexueshem ne kete dokument.'
                 flashcards = []

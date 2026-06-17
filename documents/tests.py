@@ -73,6 +73,35 @@ class DocumentTests(TestCase):
 
         self.assertIn('Tekst DOCX prove', text)
 
+    @patch('documents.views.generate_summary')
+    def test_upload_document_generates_summary_for_docx(self, mock_generate_summary):
+        mock_generate_summary.return_value = 'Permbledhje DOCX.'
+        user = User.objects.create_user(
+            username='docx_summary_student',
+            password='password123'
+        )
+        path = self.create_docx(text='Material DOCX per summary')
+        self.client.login(username='docx_summary_student', password='password123')
+
+        with open(path, 'rb') as file_handle:
+            response = self.client.post(
+                reverse('upload_document'),
+                {
+                    'title': 'DOCX Summary',
+                    'file': SimpleUploadedFile(
+                        path.name,
+                        file_handle.read(),
+                        content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+                    )
+                }
+            )
+
+        self.assertEqual(response.status_code, 302)
+        document = Document.objects.get(title='DOCX Summary')
+        self.assertEqual(document.summary, 'Permbledhje DOCX.')
+        self.assertTrue(document.ai_processed)
+        self.assertIn('Material DOCX per summary', mock_generate_summary.call_args.args[0])
+
     def test_document_form_rejects_unsupported_file_type(self):
         form = DocumentForm(
             data={'title': 'Test'},
@@ -380,6 +409,49 @@ class DocumentTests(TestCase):
         self.assertIn('Materiali i pare per AI', prompt_text)
         self.assertIn('Materiali i dyte per provim', prompt_text)
 
+    @patch('documents.views.generate_quiz')
+    def test_multi_document_study_generates_quiz_from_selected_documents(self, mock_generate_quiz):
+        mock_generate_quiz.return_value = '''
+        1. Cfare perseritet nga materialet?
+        A) Konceptet kryesore
+        B) Vetem titulli
+        C) Asgje
+        D) Ngjyrat
+        Pergjigjja e sakte: A
+        '''
+        user = User.objects.create_user(
+            username='multi_quiz_student',
+            password='password123'
+        )
+        first_path = self.create_pdf(text='Materiali i pare ka koncepte kryesore')
+        second_path = self.create_pdf(text='Materiali i dyte ka tema provimi')
+        first_document = Document.objects.create(
+            title='Kapitulli 1',
+            file=first_path.name,
+            uploaded_by=user
+        )
+        second_document = Document.objects.create(
+            title='Kapitulli 2',
+            file=second_path.name,
+            uploaded_by=user
+        )
+        self.client.login(username='multi_quiz_student', password='password123')
+
+        response = self.client.post(
+            reverse('multi_document_study'),
+            {
+                'documents': [first_document.id, second_document.id],
+                'action': 'quiz'
+            }
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Cfare perseritet nga materialet?')
+        self.assertContains(response, 'Submit Quiz')
+        prompt_text = mock_generate_quiz.call_args.args[0]
+        self.assertIn('Materiali i pare ka koncepte kryesore', prompt_text)
+        self.assertIn('Materiali i dyte ka tema provimi', prompt_text)
+
     @patch('documents.views.ask_document_ai')
     def test_chat_records_activity_and_dashboard_score(self, mock_ask_document_ai):
         mock_ask_document_ai.return_value = 'Pergjigje AI.'
@@ -413,7 +485,7 @@ class DocumentTests(TestCase):
         response = self.client.get(reverse('dashboard'))
 
         self.assertContains(response, 'Student Score')
-        self.assertContains(response, '+2 pike')
+        self.assertContains(response, '+2')
 
     @patch('documents.views.ask_document_ai')
     def test_document_chat_ask_returns_json_answer(self, mock_ask_document_ai):
@@ -445,6 +517,112 @@ class DocumentTests(TestCase):
                 document_title='Ajax Chat'
             ).exists()
         )
+
+    def test_document_study_shows_single_document_workspace(self):
+        user = User.objects.create_user(
+            username='study_student',
+            password='password123'
+        )
+        path = self.create_pdf(text='Material per studio')
+        document = Document.objects.create(
+            title='Studio Leksion',
+            file=path.name,
+            uploaded_by=user,
+            summary='Permbledhje e shkurter.'
+        )
+        self.client.login(username='study_student', password='password123')
+
+        response = self.client.get(reverse('document_study', args=[document.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Studio')
+        self.assertContains(response, 'Dokumenti')
+        self.assertContains(response, 'Summary')
+        self.assertContains(response, 'Quiz')
+        self.assertContains(response, 'Flashcards')
+        self.assertContains(response, 'Chat AI')
+        self.assertContains(response, reverse('document_file', args=[document.id]))
+
+    @patch('documents.views.generate_quiz')
+    def test_document_study_generates_quiz_inside_workspace(self, mock_generate_quiz):
+        mock_generate_quiz.return_value = '''
+        1. Cfare eshte databaza?
+        A) Vend ku ruhen te dhenat
+        B) Buton
+        C) PDF
+        D) Ngjyre
+        Pergjigjja e sakte: A
+        '''
+        user = User.objects.create_user(
+            username='study_quiz_student',
+            password='password123'
+        )
+        path = self.create_pdf(text='Databaza ruan te dhenat')
+        document = Document.objects.create(
+            title='Databaza',
+            file=path.name,
+            uploaded_by=user
+        )
+        self.client.login(username='study_quiz_student', password='password123')
+
+        response = self.client.post(
+            reverse('document_study', args=[document.id]),
+            {
+                'active_tab': 'quiz',
+                'action': 'generate_quiz'
+            }
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Cfare eshte databaza?')
+        self.assertContains(response, 'Submit Quiz')
+        self.assertTrue(
+            Activity.objects.filter(
+                user=user,
+                activity_type='quiz',
+                document_title='Databaza'
+            ).exists()
+        )
+
+    @patch('documents.views.generate_flashcards')
+    def test_document_study_flashcards_show_results_after_submit(self, mock_generate_flashcards):
+        mock_generate_flashcards.return_value = '''
+        1. Pyetje: Ku ruhen te dhenat?
+           Pergjigje: Te dhenat ruhen ne databaze.
+        '''
+        user = User.objects.create_user(
+            username='study_flash_student',
+            password='password123'
+        )
+        path = self.create_pdf(text='Te dhenat ruhen ne databaze')
+        document = Document.objects.create(
+            title='Flash Studio',
+            file=path.name,
+            uploaded_by=user
+        )
+        self.client.login(username='study_flash_student', password='password123')
+
+        self.client.post(
+            reverse('document_study', args=[document.id]),
+            {
+                'active_tab': 'flashcards',
+                'action': 'generate_flashcards'
+            }
+        )
+        response = self.client.post(
+            reverse('document_study', args=[document.id]),
+            {
+                'active_tab': 'flashcards',
+                'action': 'submit_flashcards',
+                'answer_0': 'Ne databaze'
+            }
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Pergjigjja jote')
+        self.assertContains(response, 'Pergjigjja model')
+        self.assertContains(response, 'Ne databaze')
+        self.assertNotContains(response, 'Shkruaj pergjigjen tende...')
 
     def test_quiz_history_shows_saved_attempts(self):
         user = User.objects.create_user(

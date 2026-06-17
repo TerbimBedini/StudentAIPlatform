@@ -5,6 +5,131 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>StudentAI Dashboard</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        body {
+            background: #f6f8fb;
+        }
+
+        .section-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: #111827;
+        }
+
+        .icon-badge {
+            width: 34px;
+            height: 34px;
+            border-radius: 8px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: #eef2ff;
+            color: #3730a3;
+            flex: 0 0 auto;
+        }
+
+        .icon-badge.success {
+            background: #ecfdf5;
+            color: #047857;
+        }
+
+        .icon-badge.info {
+            background: #ecfeff;
+            color: #0e7490;
+        }
+
+        .icon-badge.warning {
+            background: #fffbeb;
+            color: #b45309;
+        }
+
+        .icon-badge.dark {
+            background: #1f2937;
+            color: #ffffff;
+        }
+
+        .compact-panel {
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .compact-row {
+            padding: 12px 14px;
+            border-bottom: 1px solid #eef2f7;
+        }
+
+        .compact-row:last-child {
+            border-bottom: 0;
+        }
+
+        .item-title {
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: #111827;
+            margin-bottom: 2px;
+        }
+
+        .item-meta {
+            font-size: 0.8rem;
+            color: #6b7280;
+        }
+
+        .summary-preview {
+            font-size: 0.85rem;
+            color: #4b5563;
+            margin: 8px 0 0;
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+            gap: 20px;
+        }
+
+        .stat-card {
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+        }
+
+        .stat-card h5 {
+            font-size: 0.82rem;
+            color: #6b7280;
+            margin-bottom: 6px;
+        }
+
+        .stat-card h2 {
+            font-size: 1.75rem;
+            font-weight: 800;
+            color: #111827;
+            margin-bottom: 0;
+        }
+
+        .stat-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .score-card {
+            background: #111827;
+            color: #ffffff;
+        }
+
+        .score-card h5,
+        .score-card h2 {
+            color: #ffffff;
+        }
+
+        @media (max-width: 992px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
 </head>
 <body>
 
@@ -15,7 +140,7 @@
         </span>
 
         <a href="{% url 'logout' %}" class="btn btn-danger">
-            Logout
+            <i class="bi bi-box-arrow-right me-1"></i> Logout
         </a>
     </div>
 </nav>
@@ -23,34 +148,34 @@
 <main class="container mt-5">
     <div class="d-flex flex-wrap gap-2 mb-3">
         <button type="button" class="btn btn-outline-secondary btn-sm" onclick="history.back()">
-            Kthehu mbrapa
+            <i class="bi bi-arrow-left me-1"></i> Kthehu mbrapa
         </button>
 
         <a href="{% url 'home' %}" class="btn btn-outline-secondary btn-sm">
-            Home
+            <i class="bi bi-house me-1"></i> Home
         </a>
     </div>
 
     <div class="d-flex justify-content-between align-items-center gap-3">
         <h2 class="mb-0">
-            Mirë se erdhe, {{ request.user.username }}
+            Mire se erdhe, {{ request.user.username }}
         </h2>
 
         <div class="d-flex flex-wrap gap-2">
             <a href="{% url 'quiz_history' %}" class="btn btn-outline-success">
-                Historiku i Quizeve
+                <i class="bi bi-clipboard-check me-1"></i> Historiku i Quizeve
             </a>
 
             <a href="{% url 'flashcard_history' %}" class="btn btn-outline-info">
-                Historiku i Flashcards
+                <i class="bi bi-layers me-1"></i> Historiku i Flashcards
             </a>
 
             <a href="{% url 'multi_document_study' %}" class="btn btn-outline-dark">
-                Perseritje me disa materiale
+                <i class="bi bi-collection me-1"></i> Perseritje me disa materiale
             </a>
 
             <a href="{% url 'upload_document' %}" class="btn btn-primary">
-                Upload Document
+                <i class="bi bi-cloud-arrow-up me-1"></i> Upload Document
             </a>
         </div>
     </div>
@@ -59,28 +184,43 @@
 
     <div class="row g-3">
         <div class="col-md-4">
-            <div class="card">
+            <div class="card stat-card">
                 <div class="card-body">
-                    <h5>Dokumente</h5>
-                    <h2>{{ documents_count }}</h2>
+                    <div class="stat-content">
+                        <div>
+                            <h5>Dokumente</h5>
+                            <h2>{{ documents_count }}</h2>
+                        </div>
+                        <span class="icon-badge"><i class="bi bi-file-earmark-text"></i></span>
+                    </div>
                 </div>
             </div>
         </div>
 
         <div class="col-md-4">
-            <div class="card">
+            <div class="card stat-card">
                 <div class="card-body">
-                    <h5>Summary</h5>
-                    <h2>{{ summary_count }}</h2>
+                    <div class="stat-content">
+                        <div>
+                            <h5>Summary</h5>
+                            <h2>{{ summary_count }}</h2>
+                        </div>
+                        <span class="icon-badge success"><i class="bi bi-card-text"></i></span>
+                    </div>
                 </div>
             </div>
         </div>
 
         <div class="col-md-4">
-            <div class="card">
+            <div class="card stat-card score-card">
                 <div class="card-body">
-                    <h5>Student Score</h5>
-                    <h2>🏆 {{ total_points }}</h2>
+                    <div class="stat-content">
+                        <div>
+                            <h5>Student Score</h5>
+                            <h2>{{ total_points }}</h2>
+                        </div>
+                        <span class="icon-badge dark"><i class="bi bi-trophy"></i></span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -88,115 +228,147 @@
 
     <div class="row g-3 mt-1">
         <div class="col-md-4">
-            <div class="card">
+            <div class="card stat-card">
                 <div class="card-body">
-                    <h5>Chat AI</h5>
-                    <h2>{{ chat_count }}</h2>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-md-4">
-            <div class="card">
-                <div class="card-body">
-                    <h5>Quiz</h5>
-                    <h2>{{ quiz_count }}</h2>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-md-4">
-            <div class="card">
-                <div class="card-body">
-                    <h5>Flashcards</h5>
-                    <h2>{{ flashcards_count }}</h2>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="mt-5">
-        <h3>Aktivitetet e Fundit</h3>
-
-        {% if activities %}
-            <div class="list-group mt-3">
-                {% for activity in activities %}
-                    <div class="list-group-item d-flex flex-wrap justify-content-between align-items-center gap-2">
+                    <div class="stat-content">
                         <div>
-                            <strong>{{ activity.icon }} {{ activity.get_activity_type_display }}</strong>
-                            <span class="text-muted">- {{ activity.document_title }}</span>
+                            <h5>Chat AI</h5>
+                            <h2>{{ chat_count }}</h2>
                         </div>
-
-                        <div class="text-end">
-                            <span class="badge bg-primary">+{{ activity.points }} pike</span>
-                            <small class="text-muted ms-2">{{ activity.created_at|date:"d M Y H:i" }}</small>
-                        </div>
+                        <span class="icon-badge info"><i class="bi bi-chat-dots"></i></span>
                     </div>
-                {% endfor %}
+                </div>
             </div>
-        {% else %}
-            <p class="text-muted mt-3">
-                Ende nuk ka aktivitete AI.
-            </p>
-        {% endif %}
+        </div>
+
+        <div class="col-md-4">
+            <div class="card stat-card">
+                <div class="card-body">
+                    <div class="stat-content">
+                        <div>
+                            <h5>Quiz</h5>
+                            <h2>{{ quiz_count }}</h2>
+                        </div>
+                        <span class="icon-badge warning"><i class="bi bi-ui-checks-grid"></i></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card stat-card">
+                <div class="card-body">
+                    <div class="stat-content">
+                        <div>
+                            <h5>Flashcards</h5>
+                            <h2>{{ flashcards_count }}</h2>
+                        </div>
+                        <span class="icon-badge info"><i class="bi bi-layers"></i></span>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <div class="container mt-5">
-        <h3>Dokumentet e Mia</h3>
-
-        {% if documents %}
-            <div class="list-group mt-3">
-                {% for document in documents %}
-                    <div class="list-group-item">
-                        <div class="d-flex w-100 justify-content-between gap-3">
-                            <h5 class="mb-1">📄 {{ document.title }}</h5>
-                            <small>{{ document.uploaded_at|date:"d M Y H:i" }}</small>
-                        </div>
-                        {% if document.ai_processed %}
-                            <span class="badge bg-success">
-                                AI Processed
-                            </span>
-                        {% endif %}
-
-                        <p class="mb-1">{{ document.file.name }}</p>
-
-                        {% if document.summary %}
-                            <div class="mt-2">
-                                <strong>Përmbledhje AI:</strong>
-
-                                <p>
-                                    {{ document.summary|truncatechars:300 }}
-                                </p>
-                            </div>
-                        {% endif %}
-
-                        <div class="d-flex flex-wrap gap-2 mt-3">
-                            <a href="{% url 'document_detail' document.id %}" class="btn btn-primary btn-sm">
-                                📄 Shiko Dokumentin
-                            </a>
-
-                            <a href="{% url 'document_chat' document.id %}" class="btn btn-success btn-sm">
-                                🤖 Pyet AI
-                            </a>
-
-                            <a href="{% url 'document_quiz' document.id %}" class="btn btn-warning btn-sm">
-                                📝 Gjenero Quiz
-                            </a>
-
-                            <a href="{% url 'document_flashcards' document.id %}" class="btn btn-info btn-sm">
-                                📚 Flashcards
-                            </a>
-                        </div>
-                    </div>
-                {% endfor %}
+    <div class="dashboard-grid mt-4">
+        <section>
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <h3 class="section-title mb-0">Aktivitetet e Fundit</h3>
+                <span class="item-meta">10 te fundit</span>
             </div>
-        {% else %}
-            <p class="text-muted mt-3">
-                Nuk ke ngarkuar ende dokumente.
-            </p>
-        {% endif %}
+
+            {% if activities %}
+                <div class="compact-panel">
+                    {% for activity in activities %}
+                        <div class="compact-row d-flex justify-content-between align-items-center gap-3">
+                            <div class="d-flex align-items-center gap-3 min-w-0">
+                                <span class="icon-badge">
+                                    {% if activity.activity_type == 'chat' %}
+                                        <i class="bi bi-chat-dots"></i>
+                                    {% elif activity.activity_type == 'quiz' %}
+                                        <i class="bi bi-ui-checks-grid"></i>
+                                    {% elif activity.activity_type == 'flashcards' %}
+                                        <i class="bi bi-layers"></i>
+                                    {% else %}
+                                        <i class="bi bi-card-text"></i>
+                                    {% endif %}
+                                </span>
+                                <div class="min-w-0">
+                                    <div class="item-title">
+                                        {{ activity.get_activity_type_display }}
+                                    </div>
+                                    <div class="item-meta text-truncate" style="max-width: 280px;">
+                                        {{ activity.document_title }}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="text-end flex-shrink-0">
+                                <span class="badge bg-primary-subtle text-primary">+{{ activity.points }}</span>
+                                <div class="item-meta mt-1">{{ activity.created_at|date:"d/m H:i" }}</div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="compact-panel compact-row item-meta">
+                    Ende nuk ka aktivitete AI.
+                </div>
+            {% endif %}
+        </section>
+
+        <section>
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <h3 class="section-title mb-0">Dokumentet e Mia</h3>
+                <a href="{% url 'upload_document' %}" class="btn btn-primary btn-sm">
+                    <i class="bi bi-cloud-arrow-up me-1"></i> Upload
+                </a>
+            </div>
+
+            {% if documents %}
+                <div class="compact-panel">
+                    {% for document in documents %}
+                        <div class="compact-row">
+                            <div class="d-flex justify-content-between align-items-start gap-3">
+                                <div class="d-flex align-items-start gap-3 min-w-0">
+                                    <span class="icon-badge success"><i class="bi bi-file-earmark-pdf"></i></span>
+                                    <div class="min-w-0">
+                                        <div class="item-title text-truncate" style="max-width: 420px;">
+                                            {{ document.title }}
+                                        </div>
+                                        <div class="item-meta text-truncate" style="max-width: 420px;">
+                                            {{ document.file.name }} - {{ document.uploaded_at|date:"d/m/Y H:i" }}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="d-flex align-items-center gap-2 flex-shrink-0">
+                                    {% if document.ai_processed %}
+                                        <span class="badge bg-success-subtle text-success">AI</span>
+                                    {% endif %}
+                                    <a href="{% url 'document_study' document.id %}" class="btn btn-dark btn-sm">
+                                        <i class="bi bi-grid-1x2 me-1"></i> Studio
+                                    </a>
+                                </div>
+                            </div>
+
+                            {% if document.summary %}
+                                <p class="summary-preview">
+                                    {{ document.summary|truncatechars:120 }}
+                                </p>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="compact-panel compact-row item-meta">
+                    Nuk ke ngarkuar ende dokumente.
+                </div>
+            {% endif %}
+        </section>
     </div>
 </main>
 
 </body>
 </html>
+

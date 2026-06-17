@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>StudentAI Studio</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        body {
+            background: #f6f8fb;
+        }
+
+        .studio-header {
+            background: #111827;
+            color: #ffffff;
+        }
+
+        .studio-title {
+            max-width: 720px;
+        }
+
+        .studio-panel {
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 20px;
+        }
+
+        .document-frame {
+            width: 100%;
+            height: 68vh;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            background: #ffffff;
+        }
+
+        .nav-tabs .nav-link {
+            color: #374151;
+            font-weight: 600;
+        }
+
+        .nav-tabs .nav-link.active {
+            color: #111827;
+        }
+
+        .chat-panel {
+            min-height: 520px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .chat-messages {
+            flex: 1;
+            padding: 18px;
+            overflow-y: auto;
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+        }
+
+        .message-row {
+            display: flex;
+            margin-bottom: 14px;
+        }
+
+        .message-row.user {
+            justify-content: flex-end;
+        }
+
+        .message-bubble {
+            max-width: 78%;
+            padding: 12px 14px;
+            border-radius: 8px;
+            line-height: 1.55;
+            white-space: pre-wrap;
+        }
+
+        .message-row.ai .message-bubble {
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            color: #111827;
+        }
+
+        .message-row.user .message-bubble {
+            background: #198754;
+            color: #ffffff;
+        }
+
+        .option-input {
+            display: none;
+        }
+
+        .option-label {
+            cursor: pointer;
+            transition: border-color 0.15s ease, background-color 0.15s ease;
+        }
+
+        .option-input:checked + .option-label {
+            border-color: #198754;
+            background-color: #e9f7ef;
+        }
+
+        .summary-text {
+            white-space: pre-wrap;
+            line-height: 1.65;
+        }
+
+        .panel-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .panel-title i,
+        .nav-link i {
+            color: #4f46e5;
+        }
+    </style>
+</head>
+<body>
+
+<header class="studio-header py-3">
+    <div class="container d-flex flex-wrap justify-content-between align-items-center gap-3">
+        <div class="studio-title">
+            <a href="{% url 'dashboard' %}" class="text-white text-decoration-none fw-bold">StudentAI</a>
+            <h1 class="h3 mt-2 mb-1">Studio</h1>
+            <p class="mb-0 text-white-50">{{ document.title }}</p>
+        </div>
+
+        <div class="d-flex flex-wrap gap-2">
+            <button type="button" class="btn btn-outline-light btn-sm" onclick="history.back()">
+                <i class="bi bi-arrow-left me-1"></i> Kthehu
+            </button>
+            <a href="{% url 'dashboard' %}" class="btn btn-light btn-sm">
+                <i class="bi bi-speedometer2 me-1"></i> Dashboard
+            </a>
+            <a href="{% url 'home' %}" class="btn btn-outline-light btn-sm">
+                <i class="bi bi-house me-1"></i> Home
+            </a>
+        </div>
+    </div>
+</header>
+
+<main class="container py-4">
+    {% if error_message %}
+        <div class="alert alert-warning">
+            {{ error_message }}
+        </div>
+    {% endif %}
+
+    <ul class="nav nav-tabs mb-3" id="studyTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link {% if active_tab == 'document' %}active{% endif %}" id="document-tab" data-bs-toggle="tab" data-bs-target="#document-pane" type="button" role="tab">
+                <i class="bi bi-file-earmark-text me-1"></i> Dokumenti
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link {% if active_tab == 'summary' %}active{% endif %}" id="summary-tab" data-bs-toggle="tab" data-bs-target="#summary-pane" type="button" role="tab">
+                <i class="bi bi-card-text me-1"></i> Summary
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link {% if active_tab == 'quiz' %}active{% endif %}" id="quiz-tab" data-bs-toggle="tab" data-bs-target="#quiz-pane" type="button" role="tab">
+                <i class="bi bi-ui-checks-grid me-1"></i> Quiz
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link {% if active_tab == 'flashcards' %}active{% endif %}" id="flashcards-tab" data-bs-toggle="tab" data-bs-target="#flashcards-pane" type="button" role="tab">
+                <i class="bi bi-layers me-1"></i> Flashcards
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link {% if active_tab == 'chat' %}active{% endif %}" id="chat-tab" data-bs-toggle="tab" data-bs-target="#chat-pane" type="button" role="tab">
+                <i class="bi bi-chat-dots me-1"></i> Chat
+            </button>
+        </li>
+    </ul>
+
+    <div class="tab-content">
+        <section class="tab-pane fade {% if active_tab == 'document' %}show active{% endif %}" id="document-pane" role="tabpanel" aria-labelledby="document-tab">
+            <div class="studio-panel">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                    <div>
+                        <h2 class="h5 mb-1 panel-title"><i class="bi bi-file-earmark-text"></i> Dokumenti</h2>
+                        <p class="text-muted mb-0">{{ document.file.name }}</p>
+                    </div>
+                    <a href="{% url 'document_file' document.id %}" class="btn btn-outline-primary btn-sm" target="_blank">
+                        <i class="bi bi-box-arrow-up-right me-1"></i> Hap origjinalin
+                    </a>
+                </div>
+
+                {% if is_pdf %}
+                    <iframe class="document-frame" src="{% url 'document_file' document.id %}"></iframe>
+                {% else %}
+                    <div class="alert alert-info mb-0">
+                        Ky format nuk shfaqet direkt ne faqe. Hape dokumentin origjinal per ta pare.
+                    </div>
+                {% endif %}
+            </div>
+        </section>
+
+        <section class="tab-pane fade {% if active_tab == 'summary' %}show active{% endif %}" id="summary-pane" role="tabpanel" aria-labelledby="summary-tab">
+            <div class="studio-panel">
+                <h2 class="h5 panel-title"><i class="bi bi-card-text"></i> Summary</h2>
+                {% if document.summary %}
+                    <div class="summary-text mt-3">{{ document.summary }}</div>
+                {% else %}
+                    <div class="alert alert-info mt-3 mb-0">
+                        Ky dokument nuk ka ende permbledhje AI.
+                    </div>
+                {% endif %}
+            </div>
+        </section>
+
+        <section class="tab-pane fade {% if active_tab == 'quiz' %}show active{% endif %}" id="quiz-pane" role="tabpanel" aria-labelledby="quiz-tab">
+            <div class="studio-panel">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                    <div>
+                        <h2 class="h5 mb-1 panel-title"><i class="bi bi-ui-checks-grid"></i> Quiz</h2>
+                        <p class="text-muted mb-0">Pyetjet krijohen vetem nga ky dokument.</p>
+                    </div>
+                    <form method="POST" class="m-0">
+                        {% csrf_token %}
+                        <input type="hidden" name="active_tab" value="quiz">
+                        <input type="hidden" name="action" value="generate_quiz">
+                        <button class="btn btn-warning" type="submit">
+                            <i class="bi bi-magic me-1"></i> Gjenero Quiz
+                        </button>
+                    </form>
+                </div>
+
+                {% if quiz_result %}
+                    <div class="alert alert-success">
+                        <strong>{{ quiz_result.score }}/{{ quiz_result.total }}</strong>
+                        <span class="ms-2">{{ quiz_result.category }}</span>
+                    </div>
+
+                    <div class="border rounded p-3 mb-3">
+                        <h3 class="h6">Sugjerime per perseritje</h3>
+                        <p class="mb-2">{{ quiz_result.advice }}</p>
+                        {% if quiz_result.mistakes %}
+                            <ul class="mb-0">
+                                {% for mistake in quiz_result.mistakes %}
+                                    <li>{{ mistake.question }} <span class="text-muted">(e sakta: {{ mistake.answer }})</span></li>
+                                {% endfor %}
+                            </ul>
+                        {% endif %}
+                    </div>
+                {% endif %}
+
+                {% if questions %}
+                    <form method="POST" id="study-quiz-form">
+                        {% csrf_token %}
+                        <input type="hidden" name="active_tab" value="quiz">
+                        <input type="hidden" name="action" value="submit_quiz">
+
+                        {% for question in questions %}
+                            <section class="border rounded p-3 mb-3">
+                                <h3 class="h6">{{ forloop.counter }}. {{ question.question }}</h3>
+                                <div class="row g-2 mt-2">
+                                    {% for key, option in question.options.items %}
+                                        <div class="col-md-6">
+                                            <input
+                                                class="option-input"
+                                                type="radio"
+                                                id="study_q{{ forloop.parentloop.counter0 }}_{{ key }}"
+                                                name="question_{{ forloop.parentloop.counter0 }}"
+                                                value="{{ key }}"
+                                                {% if question.selected == key %}checked{% endif %}
+                                                {% if quiz_result %}disabled{% endif %}
+                                            >
+                                            <label
+                                                class="option-label border rounded w-100 p-3 {% if quiz_result and key == question.answer %}border-success bg-success-subtle{% elif quiz_result and question.selected == key and not question.is_correct %}border-danger bg-danger-subtle{% endif %}"
+                                                for="study_q{{ forloop.parentloop.counter0 }}_{{ key }}"
+                                            >
+                                                <strong>{{ key }}.</strong> {{ option }}
+                                                {% if quiz_result and key == question.answer %}
+                                                    <span class="badge bg-success ms-2">E sakte</span>
+                                                {% elif quiz_result and question.selected == key and not question.is_correct %}
+                                                    <span class="badge bg-danger ms-2">Gabim</span>
+                                                {% endif %}
+                                            </label>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            </section>
+                        {% endfor %}
+
+                        {% if not quiz_result %}
+                            <button class="btn btn-success" type="submit" id="study-quiz-submit">
+                                <i class="bi bi-check2-circle me-1"></i>
+                                Submit Quiz
+                            </button>
+                        {% endif %}
+                    </form>
+                {% else %}
+                    <div class="alert alert-light border mb-0">
+                        Shtyp "Gjenero Quiz" per te krijuar pyetje nga dokumenti.
+                    </div>
+                {% endif %}
+            </div>
+        </section>
+
+        <section class="tab-pane fade {% if active_tab == 'flashcards' %}show active{% endif %}" id="flashcards-pane" role="tabpanel" aria-labelledby="flashcards-tab">
+            <div class="studio-panel">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                    <div>
+                        <h2 class="h5 mb-1 panel-title"><i class="bi bi-layers"></i> Flashcards</h2>
+                        <p class="text-muted mb-0">Shkruaj pergjigjen tende dhe kontrollo thelbin.</p>
+                    </div>
+                    <form method="POST" class="m-0">
+                        {% csrf_token %}
+                        <input type="hidden" name="active_tab" value="flashcards">
+                        <input type="hidden" name="action" value="generate_flashcards">
+                        <button class="btn btn-info" type="submit">
+                            <i class="bi bi-magic me-1"></i> Gjenero Flashcards
+                        </button>
+                    </form>
+                </div>
+
+                <div class="d-flex flex-wrap gap-2 mb-3">
+                    <span class="badge bg-success">Jeshile: thelbi eshte kapur mire</span>
+                    <span class="badge bg-warning text-dark">E verdhe: pjeserisht mire</span>
+                    <span class="badge bg-danger">E kuqe: duhet perseritur</span>
+                </div>
+
+                {% if flashcard_results %}
+                    <div class="alert alert-success">
+                        <strong>{{ flashcard_results.average_score }}%</strong>
+                        <span class="ms-2">{{ flashcard_results.overall_label }}</span>
+                    </div>
+                {% endif %}
+
+                {% if flashcards %}
+                    <form method="POST" id="study-flashcards-form">
+                        {% csrf_token %}
+                        <input type="hidden" name="active_tab" value="flashcards">
+                        <input type="hidden" name="action" value="submit_flashcards">
+
+                        {% for flashcard in flashcards %}
+                            <section class="border rounded p-3 mb-3 {% if flashcard.evaluation.score >= 70 %}border-success bg-success-subtle{% elif flashcard.evaluation.score >= 40 %}border-warning bg-warning-subtle{% elif flashcard.evaluation %}border-danger bg-danger-subtle{% endif %}">
+                                <h3 class="h6">{{ forloop.counter }}. {{ flashcard.question }}</h3>
+
+                                {% if flashcard.evaluation %}
+                                    <p class="mb-1"><strong>Pergjigjja jote:</strong> {{ flashcard.user_answer|default:"Pa pergjigje" }}</p>
+                                    <p class="mb-1"><strong>Pergjigjja model:</strong> {{ flashcard.answer }}</p>
+                                    <p class="mb-0"><strong>Vleresim:</strong> {{ flashcard.evaluation.label }} - {{ flashcard.evaluation.score }}%</p>
+                                {% else %}
+                                    <textarea class="form-control flashcard-answer" name="answer_{{ forloop.counter0 }}" rows="3" placeholder="Shkruaj pergjigjen tende..."></textarea>
+                                {% endif %}
+                            </section>
+                        {% endfor %}
+
+                        {% if not flashcard_results %}
+                            <button class="btn btn-success" type="submit" id="study-flashcards-submit">
+                                <i class="bi bi-check2-circle me-1"></i>
+                                Kontrollo Pergjigjet
+                            </button>
+                        {% endif %}
+                    </form>
+                {% else %}
+                    <div class="alert alert-light border mb-0">
+                        Shtyp "Gjenero Flashcards" per te krijuar pyetje per perseritje.
+                    </div>
+                {% endif %}
+            </div>
+        </section>
+
+        <section class="tab-pane fade {% if active_tab == 'chat' %}show active{% endif %}" id="chat-pane" role="tabpanel" aria-labelledby="chat-tab">
+            <div class="studio-panel chat-panel">
+                <div class="mb-3">
+                    <h2 class="h5 mb-1 panel-title"><i class="bi bi-chat-dots"></i> Chat AI</h2>
+                    <p class="text-muted mb-0">Pergjigjet bazohen vetem ne tekstin e dokumentit.</p>
+                </div>
+
+                <div class="chat-messages" id="chat-messages">
+                    <div class="message-row ai">
+                        <div class="message-bubble">
+                            Pershendetje. Bej nje pyetje per dokumentin dhe do te pergjigjem mbi materialin e ngarkuar.
+                        </div>
+                    </div>
+                </div>
+
+                <form method="POST" id="study-chat-form" class="mt-3" data-ask-url="{% url 'document_chat_ask' document.id %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="active_tab" value="chat">
+                    <input type="hidden" name="action" value="chat">
+                    <div class="d-flex gap-2 align-items-end">
+                        <textarea id="study-question" name="question" class="form-control" rows="2" placeholder="Shkruaj pyetjen ketu..."></textarea>
+                        <button class="btn btn-success px-4" type="submit" id="study-chat-submit">
+                            <i class="bi bi-send me-1"></i> Send
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </section>
+    </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    const quizForm = document.getElementById('study-quiz-form');
+    const quizButton = document.getElementById('study-quiz-submit');
+    if (quizForm && quizButton) {
+        quizForm.addEventListener('submit', function () {
+            quizButton.disabled = true;
+            quizButton.textContent = 'Duke kontrolluar...';
+        });
+    }
+
+    const flashcardsForm = document.getElementById('study-flashcards-form');
+    const flashcardsButton = document.getElementById('study-flashcards-submit');
+    if (flashcardsForm && flashcardsButton) {
+        flashcardsForm.addEventListener('submit', function () {
+            flashcardsButton.disabled = true;
+            flashcardsButton.textContent = 'Duke kontrolluar...';
+        });
+    }
+
+    document.querySelectorAll('.flashcard-answer').forEach(function (input) {
+        input.addEventListener('input', function () {
+            if (input.value.length === 1) {
+                input.value = input.value.toUpperCase();
+            }
+        });
+    });
+
+    const questionInput = document.getElementById('study-question');
+    const chatForm = document.getElementById('study-chat-form');
+    const chatButton = document.getElementById('study-chat-submit');
+
+    function addChatMessage(type, text) {
+        const row = document.createElement('div');
+        row.className = `message-row ${type}`;
+
+        const bubble = document.createElement('div');
+        bubble.className = 'message-bubble';
+        bubble.textContent = text;
+
+        row.appendChild(bubble);
+        document.getElementById('chat-messages').appendChild(row);
+        row.scrollIntoView({ behavior: 'smooth', block: 'end' });
+        return row;
+    }
+
+    if (questionInput && chatForm) {
+        questionInput.addEventListener('keydown', function (event) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                chatForm.requestSubmit();
+            }
+        });
+
+        chatForm.addEventListener('submit', async function (event) {
+            event.preventDefault();
+
+            const question = questionInput.value.trim();
+            if (!question) {
+                return;
+            }
+
+            chatButton.disabled = true;
+            chatButton.textContent = '...';
+            questionInput.value = '';
+
+            addChatMessage('user', question);
+            const waitingRow = addChatMessage('ai', 'Duke menduar...');
+
+            const formData = new FormData();
+            formData.append('question', question);
+            formData.append('csrfmiddlewaretoken', chatForm.querySelector('[name=csrfmiddlewaretoken]').value);
+
+            try {
+                const response = await fetch(chatForm.dataset.askUrl, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                });
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Ndodhi nje gabim.');
+                }
+
+                waitingRow.querySelector('.message-bubble').textContent = data.answer;
+            } catch (error) {
+                waitingRow.querySelector('.message-bubble').textContent = error.message;
+            } finally {
+                chatButton.disabled = false;
+                chatButton.textContent = 'Send';
+                questionInput.focus();
+            }
+        });
+    }
+</script>
+
+</body>
+</html>
