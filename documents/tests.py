@@ -535,7 +535,7 @@ class DocumentTests(TestCase):
         response = self.client.get(reverse('document_study', args=[document.id]))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Studio')
+        self.assertContains(response, 'Study Workspace')
         self.assertContains(response, 'Dokumenti')
         self.assertContains(response, 'Summary')
         self.assertContains(response, 'Quiz')

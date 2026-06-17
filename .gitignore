@@ -7,3 +7,6 @@ media/
 db.sqlite3
 
 .vscode/
+lovable_frontend/node_modules/
+lovable_frontend/dist/
+lovable_frontend/
