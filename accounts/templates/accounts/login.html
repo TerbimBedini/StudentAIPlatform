@@ -3,65 +3,230 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Login</title>
+    <title>Login - StudentAI</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --navy: #0f172a;
+            --indigo: #4f46e5;
+            --blue: #2563eb;
+            --muted: #94a3b8;
+        }
+
+        body {
+            min-height: 100vh;
+            margin: 0;
+            font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            color: #ffffff;
+            background:
+                radial-gradient(circle at 15% 12%, rgba(79, 70, 229, 0.45), transparent 28rem),
+                radial-gradient(circle at 82% 18%, rgba(37, 99, 235, 0.28), transparent 30rem),
+                linear-gradient(135deg, var(--navy), #111b3f 58%, #1e1b4b);
+        }
+
+        .auth-shell {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            padding: 32px 0;
+        }
+
+        .brand-mark {
+            width: 42px;
+            height: 42px;
+            border-radius: 14px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #60a5fa, #818cf8);
+            color: white;
+            font-weight: 900;
+            box-shadow: 0 12px 30px rgba(99, 102, 241, 0.42);
+        }
+
+        .preview-card,
+        .form-card {
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            border-radius: 28px;
+            background: rgba(255, 255, 255, 0.1);
+            box-shadow: 0 26px 80px rgba(0, 0, 0, 0.28);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+        }
+
+        .preview-card {
+            padding: 30px;
+        }
+
+        .form-card {
+            padding: 34px;
+            background: rgba(255, 255, 255, 0.92);
+            color: #111827;
+        }
+
+        .mini-card {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 14px;
+            border-radius: 18px;
+            background: rgba(255, 255, 255, 0.09);
+            border: 1px solid rgba(255, 255, 255, 0.13);
+            transition: transform 0.2s ease, background 0.2s ease;
+        }
+
+        .mini-card:hover {
+            transform: translateX(4px);
+            background: rgba(255, 255, 255, 0.14);
+        }
+
+        .mini-icon {
+            width: 42px;
+            height: 42px;
+            border-radius: 14px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #60a5fa, #818cf8);
+            font-weight: 900;
+            flex: 0 0 auto;
+        }
+
+        .form-control {
+            min-height: 48px;
+            border-radius: 14px;
+            border: 1px solid #dbe3ef;
+            background: #f8fafc;
+        }
+
+        .form-control:focus {
+            border-color: var(--indigo);
+            box-shadow: 0 0 0 0.2rem rgba(79, 70, 229, 0.14);
+        }
+
+        .btn-premium {
+            min-height: 48px;
+            border: 0;
+            border-radius: 14px;
+            color: white;
+            background: linear-gradient(135deg, var(--indigo), var(--blue));
+            box-shadow: 0 16px 34px rgba(37, 99, 235, 0.28);
+            transition: transform 0.18s ease, box-shadow 0.18s ease;
+        }
+
+        .btn-premium:hover {
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 22px 44px rgba(37, 99, 235, 0.36);
+        }
+
+        .top-link {
+            color: rgba(255, 255, 255, 0.74);
+            text-decoration: none;
+        }
+
+        .top-link:hover {
+            color: #ffffff;
+        }
+    </style>
 </head>
 <body>
+    <main class="auth-shell">
+        <div class="container">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <a href="{% url 'home' %}" class="d-flex align-items-center gap-2 text-white text-decoration-none">
+                    <span class="brand-mark">S</span>
+                    <span class="fw-bold fs-5">StudentAI</span>
+                </a>
+                <a href="{% url 'home' %}" class="top-link">Home</a>
+            </div>
 
-<nav class="navbar navbar-dark bg-dark">
-    <div class="container">
-        <a href="{% url 'home' %}" class="navbar-brand">StudentAI</a>
+            <div class="row align-items-center g-4">
+                <div class="col-lg-6">
+                    <section class="preview-card">
+                        <span class="badge rounded-pill text-bg-light mb-4">AI learning workspace</span>
+                        <h1 class="display-5 fw-bold mb-3">Turn every lecture into an interactive study session.</h1>
+                        <p class="lead text-white-50 mb-4">
+                            Summaries, quizzes, flashcards, and document chat in one focused platform.
+                        </p>
 
-        <a href="{% url 'register' %}" class="btn btn-outline-light btn-sm">
-            Register
-        </a>
-    </div>
-</nav>
+                        <div class="d-grid gap-3">
+                            <div class="mini-card">
+                                <span class="mini-icon">PDF</span>
+                                <div>
+                                    <div class="fw-bold">Upload materials</div>
+                                    <div class="text-white-50 small">Keep lectures organized.</div>
+                                </div>
+                            </div>
+                            <div class="mini-card">
+                                <span class="mini-icon">AI</span>
+                                <div>
+                                    <div class="fw-bold">Ask document-based questions</div>
+                                    <div class="text-white-50 small">Get answers from your own notes.</div>
+                                </div>
+                            </div>
+                            <div class="mini-card">
+                                <span class="mini-icon">A+</span>
+                                <div>
+                                    <div class="fw-bold">Track progress</div>
+                                    <div class="text-white-50 small">Improve with quizzes and flashcards.</div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+                </div>
 
-<main class="container mt-5">
-<div class="d-flex flex-wrap gap-2 mb-3">
-    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="history.back()">
-        Kthehu mbrapa
-    </button>
+                <div class="col-lg-5 offset-lg-1">
+                    <section class="form-card">
+                        <h2 class="fw-bold mb-2">Welcome back</h2>
+                        <p class="text-muted mb-4">Continue your AI-powered learning journey</p>
 
-    <a href="{% url 'home' %}" class="btn btn-outline-secondary btn-sm">
-        Home
-    </a>
-</div>
+                        {% if error_message %}
+                            <div class="alert alert-danger">
+                                {{ error_message }}
+                            </div>
+                        {% endif %}
 
-<h1>Login</h1>
+                        <form method="POST">
+                            {% csrf_token %}
 
-{% if error_message %}
-    <p style="color: red;">{{ error_message }}</p>
-{% endif %}
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold" for="username">Username</label>
+                                <input
+                                    id="username"
+                                    class="form-control"
+                                    type="text"
+                                    name="username"
+                                    placeholder="Enter username"
+                                    autocomplete="username"
+                                >
+                            </div>
 
-<form method="POST">
+                            <div class="mb-4">
+                                <label class="form-label fw-semibold" for="password">Password</label>
+                                <input
+                                    id="password"
+                                    class="form-control"
+                                    type="password"
+                                    name="password"
+                                    placeholder="Enter password"
+                                    autocomplete="current-password"
+                                >
+                            </div>
 
-    {% csrf_token %}
+                            <button type="submit" class="btn btn-premium w-100 fw-bold">
+                                Login
+                            </button>
+                        </form>
 
-    <input
-        type="text"
-        name="username"
-        placeholder="Username"
-    >
-
-    <br><br>
-
-    <input
-        type="password"
-        name="password"
-        placeholder="Password"
-    >
-
-    <br><br>
-
-    <button type="submit">
-        Login
-    </button>
-
-</form>
-
-</main>
-
+                        <p class="text-center text-muted mt-4 mb-0">
+                            Don't have an account?
+                            <a href="{% url 'register' %}" class="fw-semibold text-decoration-none">Register</a>
+                        </p>
+                    </section>
+                </div>
+            </div>
+        </div>
+    </main>
 </body>
 </html>

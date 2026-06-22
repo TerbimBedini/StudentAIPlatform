@@ -1,0 +1,95 @@
+{% extends 'accounts/base_app.html' %}
+
+{% block title %}Community{% endblock %}
+
+{% block content %}
+<style>
+    .community-layout {
+        display: grid;
+        grid-template-columns: 360px minmax(0, 1fr);
+        gap: 22px;
+        align-items: start;
+    }
+
+    .panel,
+    .message-card {
+        border: 1px solid var(--border);
+        border-radius: 22px;
+        background: var(--surface);
+        box-shadow: 0 18px 48px rgba(15, 23, 42, 0.1);
+    }
+
+    .card-pad {
+        padding: 22px;
+    }
+
+    .message-card {
+        padding: 16px;
+    }
+
+    @media (max-width: 991px) {
+        .community-layout {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+<div class="community-layout">
+    <aside class="panel">
+        <div class="card-pad">
+            <h1 class="h4 fw-bold mb-2">Community Board</h1>
+            <p class="text-muted">Ask for lectures, old exams, or offer study material.</p>
+
+            <form method="post" class="d-grid gap-3">
+                {% csrf_token %}
+                {% for field in form %}
+                    <div>
+                        <label class="form-label fw-bold" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                        {{ field }}
+                        {% for error in field.errors %}
+                            <div class="text-danger small mt-1">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                {% endfor %}
+                <button class="btn btn-primary rounded-3" type="submit">Post message</button>
+            </form>
+        </div>
+    </aside>
+
+    <section class="panel">
+        <div class="card-pad">
+            <div class="d-flex justify-content-between align-items-center gap-3 flex-wrap mb-4">
+                <div>
+                    <h2 class="h4 fw-bold mb-1">Requests and offers</h2>
+                    <p class="text-muted mb-0">Keep it academic and useful for everyone.</p>
+                </div>
+                <form method="get">
+                    <select class="form-select" name="field" onchange="this.form.submit()">
+                        <option value="">All fields</option>
+                        {% for key, label in field_choices %}
+                            <option value="{{ key }}" {% if selected_field == key %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </form>
+            </div>
+
+            <div class="d-grid gap-3">
+                {% for message in messages %}
+                    <article class="message-card">
+                        <div class="d-flex justify-content-between gap-3 flex-wrap">
+                            <div>
+                                <h3 class="h5 fw-bold mb-1">{{ message.title }}</h3>
+                                <div class="text-muted small">{{ message.get_kind_display }} &middot; {{ message.get_field_display }} &middot; {{ message.user.username }}</div>
+                            </div>
+                            <div class="text-muted small">{{ message.created_at|date:"d/m H:i" }}</div>
+                        </div>
+                        <p class="mb-0 mt-3">{{ message.message }}</p>
+                    </article>
+                {% empty %}
+                    <div class="message-card text-muted">No community posts yet.</div>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+</div>
+{% endblock %}

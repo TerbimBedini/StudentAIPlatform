@@ -14,9 +14,12 @@
             StudentAI
         </a>
 
-        <a href="{% url 'logout' %}" class="btn btn-danger">
-            Logout
-        </a>
+        <form method="post" action="{% url 'logout' %}" class="m-0">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-danger">
+                Logout
+            </button>
+        </form>
     </div>
 </nav>
 

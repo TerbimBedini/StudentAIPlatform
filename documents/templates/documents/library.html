@@ -1,0 +1,322 @@
+{% extends 'accounts/base_app.html' %}
+
+{% block title %}Community Library{% endblock %}
+
+{% block content %}
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+
+<style>
+    .library-page {
+        display: grid;
+        gap: 22px;
+    }
+
+    .library-hero,
+    .library-card,
+    .resource-card,
+    .field-card {
+        border: 1px solid var(--border);
+        border-radius: 22px;
+        background: var(--surface);
+        box-shadow: 0 18px 48px rgba(15, 23, 42, 0.1);
+        backdrop-filter: blur(18px);
+        -webkit-backdrop-filter: blur(18px);
+    }
+
+    .library-hero {
+        color: #ffffff;
+        background:
+            linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(30, 64, 175, 0.88)),
+            radial-gradient(circle at 86% 18%, rgba(56, 189, 248, 0.28), transparent 24rem);
+    }
+
+    .card-pad {
+        padding: 22px;
+    }
+
+    .eyebrow {
+        color: #bfdbfe;
+        font-size: 0.78rem;
+        font-weight: 900;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .btn-premium,
+    .btn-soft {
+        border-radius: 14px;
+        font-weight: 850;
+    }
+
+    .btn-premium {
+        border: 0;
+        color: #ffffff;
+        background: linear-gradient(135deg, var(--indigo), var(--blue));
+        box-shadow: 0 14px 30px rgba(37, 99, 235, 0.24);
+    }
+
+    .btn-premium:hover {
+        color: #ffffff;
+        transform: translateY(-1px);
+    }
+
+    .btn-soft {
+        border: 1px solid rgba(148, 163, 184, 0.36);
+        color: #1e293b;
+        background: rgba(255, 255, 255, 0.84);
+    }
+
+    .field-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 14px;
+    }
+
+    .field-card {
+        padding: 16px;
+        color: #111827;
+        text-decoration: none;
+        transition: transform 0.18s ease, border-color 0.18s ease;
+    }
+
+    .field-card:hover,
+    .field-card.active {
+        color: #111827;
+        transform: translateY(-2px);
+        border-color: rgba(99, 102, 241, 0.48);
+    }
+
+    .field-icon {
+        width: 42px;
+        height: 42px;
+        border-radius: 15px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #ffffff;
+        background: linear-gradient(135deg, var(--indigo), var(--blue));
+    }
+
+    .filter-grid {
+        display: grid;
+        grid-template-columns: 1fr 220px 220px auto;
+        gap: 12px;
+    }
+
+    .resource-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 18px;
+    }
+
+    .resource-card {
+        min-width: 0;
+    }
+
+    .resource-title {
+        margin: 0;
+        color: #111827;
+        font-size: 1rem;
+        font-weight: 900;
+        overflow-wrap: anywhere;
+    }
+
+    .resource-meta,
+    .section-subtitle {
+        color: var(--muted);
+        font-size: 0.86rem;
+    }
+
+    .status-pill {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        padding: 6px 10px;
+        color: #047857;
+        background: #d1fae5;
+        font-size: 0.74rem;
+        font-weight: 850;
+    }
+
+    .community-list {
+        display: grid;
+        gap: 10px;
+    }
+
+    .community-row {
+        border: 1px solid rgba(226, 232, 240, 0.82);
+        border-radius: 16px;
+        background: rgba(248, 250, 252, 0.72);
+        padding: 14px;
+    }
+
+    .empty-state {
+        border: 1px dashed rgba(148, 163, 184, 0.7);
+        border-radius: 18px;
+        padding: 24px;
+        color: var(--muted);
+        background: rgba(248, 250, 252, 0.72);
+        text-align: center;
+    }
+
+    @media (max-width: 1199px) {
+        .field-grid,
+        .resource-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .filter-grid {
+            grid-template-columns: 1fr 1fr;
+        }
+    }
+
+    @media (max-width: 767px) {
+        .field-grid,
+        .resource-grid,
+        .filter-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+<div class="library-page">
+    <section class="library-hero">
+        <div class="card-pad">
+            <div class="d-flex justify-content-between align-items-center gap-4 flex-wrap">
+                <div>
+                    <div class="eyebrow mb-2">Shared Academic Library</div>
+                    <h1 class="display-6 fw-bold mb-2">Community Library</h1>
+                    <p class="text-white-50 mb-0">
+                        Store old exams, lectures, notes, and study material by field. Student uploads stay private until review.
+                    </p>
+                </div>
+                <div class="d-flex gap-2 flex-wrap">
+                    {% if request.user.is_staff %}
+                        <a href="{% url 'library_moderation' %}" class="btn btn-outline-light rounded-pill px-4 fw-bold">
+                            <i class="bi bi-shield-check me-1"></i> Moderate
+                        </a>
+                    {% endif %}
+                    <a href="{% url 'library_upload' %}" class="btn btn-light rounded-pill px-4 fw-bold">
+                        <i class="bi bi-cloud-arrow-up me-1"></i> Upload
+                    </a>
+                    <a href="{% url 'community_chat' %}" class="btn btn-outline-light rounded-pill px-4 fw-bold">
+                        <i class="bi bi-chat-dots me-1"></i> Community
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="field-grid">
+        {% for field in field_cards %}
+            <a href="?field={{ field.key }}" class="field-card {% if selected_field == field.key %}active{% endif %}">
+                <div class="d-flex align-items-center gap-3">
+                    <span class="field-icon">{{ field.label|slice:":1" }}</span>
+                    <div>
+                        <div class="fw-bold">{{ field.label }}</div>
+                        <div class="section-subtitle">{{ field.count }} approved files</div>
+                    </div>
+                </div>
+            </a>
+        {% endfor %}
+    </section>
+
+    <section class="library-card">
+        <div class="card-pad">
+            <div class="d-flex justify-content-between align-items-end gap-3 flex-wrap mb-3">
+                <div>
+                    <h2 class="h5 fw-bold mb-1">Browse resources</h2>
+                    <p class="section-subtitle mb-0">Only approved documents appear here.</p>
+                </div>
+                <a href="{% url 'library_submissions' %}" class="btn btn-soft">
+                    My submissions{% if pending_count %} &middot; {{ pending_count }} pending{% endif %}
+                </a>
+            </div>
+
+            <form method="get" class="filter-grid mb-4">
+                <input class="form-control" type="search" name="q" value="{{ query }}" placeholder="Search course, title, topic...">
+                <select class="form-select" name="field">
+                    <option value="">All fields</option>
+                    {% for key, label in field_choices %}
+                        <option value="{{ key }}" {% if selected_field == key %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+                <select class="form-select" name="type">
+                    <option value="">All types</option>
+                    {% for key, label in type_choices %}
+                        <option value="{{ key }}" {% if selected_type == key %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+                <button class="btn btn-premium px-4" type="submit">Filter</button>
+            </form>
+
+            {% if documents %}
+                <div class="resource-grid">
+                    {% for document in documents %}
+                        <article class="resource-card">
+                            <div class="card-pad d-flex flex-column h-100">
+                                <div class="d-flex justify-content-between align-items-start gap-3">
+                                    <div class="min-w-0">
+                                        <h3 class="resource-title">{{ document.title }}</h3>
+                                        <div class="resource-meta">{{ document.course_name }} &middot; {{ document.get_field_display }}</div>
+                                    </div>
+                                    <span class="status-pill">Approved</span>
+                                </div>
+
+                                <p class="resource-meta mt-3 mb-3">
+                                    {{ document.description|default:"No description provided."|truncatechars:140 }}
+                                </p>
+
+                                <div class="resource-meta mt-auto mb-3">
+                                    {{ document.get_document_type_display }}
+                                    {% if document.academic_year %}&middot; {{ document.academic_year }}{% endif %}
+                                    &middot; by {{ document.uploaded_by.username }}
+                                </div>
+
+                                <a href="{{ document.file.url }}" target="_blank" class="btn btn-premium w-100">
+                                    <i class="bi bi-file-earmark-text me-1"></i> Open document
+                                </a>
+                            </div>
+                        </article>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="empty-state">
+                    No approved documents found for this filter yet.
+                </div>
+            {% endif %}
+        </div>
+    </section>
+
+    <section class="library-card">
+        <div class="card-pad">
+            <div class="d-flex justify-content-between align-items-end gap-3 flex-wrap mb-3">
+                <div>
+                    <h2 class="h5 fw-bold mb-1">Community requests</h2>
+                    <p class="section-subtitle mb-0">Ask for lectures or offer material to other students.</p>
+                </div>
+                <a href="{% url 'community_chat' %}" class="btn btn-soft">Open community</a>
+            </div>
+
+            {% if community_messages %}
+                <div class="community-list">
+                    {% for message in community_messages %}
+                        <div class="community-row">
+                            <div class="d-flex justify-content-between gap-3 flex-wrap">
+                                <div>
+                                    <div class="fw-bold">{{ message.title }}</div>
+                                    <div class="resource-meta">{{ message.get_kind_display }} &middot; {{ message.get_field_display }} &middot; {{ message.user.username }}</div>
+                                </div>
+                                <div class="resource-meta">{{ message.created_at|date:"d/m H:i" }}</div>
+                            </div>
+                            <p class="mb-0 mt-2">{{ message.message|truncatechars:180 }}</p>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="empty-state">No community messages yet.</div>
+            {% endif %}
+        </div>
+    </section>
+</div>
+{% endblock %}

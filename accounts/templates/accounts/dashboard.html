@@ -1,374 +1,935 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>StudentAI Dashboard</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
-    <style>
-        body {
-            background: #f6f8fb;
+{% extends 'accounts/base_app.html' %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+
+<style>
+    .hero-panel {
+        position: relative;
+        overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, 0.55);
+        border-radius: 26px;
+        background:
+            linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(49, 46, 129, 0.9)),
+            linear-gradient(135deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.04));
+        color: white;
+        box-shadow: 0 24px 70px rgba(15, 23, 42, 0.26);
+    }
+
+    .hero-panel::after {
+        content: "";
+        position: absolute;
+        inset: auto -12% -46% 44%;
+        height: 270px;
+        background: radial-gradient(circle, rgba(96, 165, 250, 0.42), transparent 68%);
+        pointer-events: none;
+    }
+
+    .hero-content {
+        position: relative;
+        z-index: 1;
+    }
+
+    .small-label {
+        color: var(--muted);
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        font-weight: 800;
+    }
+
+    .btn-premium {
+        border: 0;
+        border-radius: 14px;
+        color: white;
+        background: linear-gradient(135deg, var(--indigo), var(--blue));
+        box-shadow: 0 14px 30px rgba(37, 99, 235, 0.24);
+        transition: transform 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    .btn-premium:hover {
+        color: white;
+        transform: translateY(-1px);
+        box-shadow: 0 18px 40px rgba(37, 99, 235, 0.32);
+    }
+
+    .btn-soft {
+        border-radius: 14px;
+        border: 1px solid rgba(148, 163, 184, 0.42);
+        background: rgba(255, 255, 255, 0.78);
+        color: #1e293b;
+        transition: transform 0.18s ease, background 0.18s ease, border-color 0.18s ease;
+    }
+
+    .btn-soft:hover {
+        transform: translateY(-1px);
+        background: #ffffff;
+        border-color: rgba(79, 70, 229, 0.38);
+    }
+
+    .glass-card {
+        border: 1px solid var(--border);
+        border-radius: 22px;
+        background: var(--surface);
+        box-shadow: 0 18px 48px rgba(15, 23, 42, 0.1);
+        backdrop-filter: blur(18px);
+        -webkit-backdrop-filter: blur(18px);
+        transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
+        animation: cardIn 0.45s ease both;
+    }
+
+    .glass-card:hover {
+        transform: translateY(-3px);
+        border-color: rgba(99, 102, 241, 0.42);
+        box-shadow: 0 24px 62px rgba(15, 23, 42, 0.15);
+    }
+
+    .stat-card {
+        min-height: 130px;
+    }
+
+    .card-pad {
+        padding: 22px;
+    }
+
+    .stat-icon {
+        width: 44px;
+        height: 44px;
+        border-radius: 16px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        background: linear-gradient(135deg, var(--indigo), var(--blue));
+        box-shadow: 0 12px 28px rgba(79, 70, 229, 0.26);
+    }
+
+    .stat-value {
+        margin: 0;
+        font-size: 2rem;
+        font-weight: 850;
+        letter-spacing: 0;
+    }
+
+    .stat-label {
+        margin: 0;
+        color: var(--muted);
+        font-size: 0.86rem;
+        font-weight: 700;
+    }
+
+    .score-card {
+        background: linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(30, 27, 75, 0.94));
+        color: #ffffff;
+    }
+
+    .score-card .stat-label {
+        color: rgba(255, 255, 255, 0.72);
+    }
+
+    .section-heading {
+        display: flex;
+        justify-content: space-between;
+        align-items: end;
+        gap: 16px;
+        margin-bottom: 18px;
+    }
+
+    .section-title {
+        margin: 0;
+        font-size: 1.12rem;
+        font-weight: 850;
+    }
+
+    .section-subtitle {
+        margin: 4px 0 0;
+        color: var(--muted);
+        font-size: 0.9rem;
+    }
+
+    .document-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px;
+    }
+
+    .documents-scroll {
+        max-height: 560px;
+        overflow-y: auto;
+        padding-right: 8px;
+    }
+
+    .documents-scroll::-webkit-scrollbar,
+    .activity-scroll::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    .documents-scroll::-webkit-scrollbar-track,
+    .activity-scroll::-webkit-scrollbar-track {
+        border-radius: 999px;
+        background: rgba(226, 232, 240, 0.62);
+    }
+
+    .documents-scroll::-webkit-scrollbar-thumb,
+    .activity-scroll::-webkit-scrollbar-thumb {
+        border-radius: 999px;
+        background: rgba(99, 102, 241, 0.42);
+    }
+
+    .document-card {
+        display: flex;
+        flex-direction: column;
+        min-height: 270px;
+    }
+
+    .document-top {
+        display: flex;
+        align-items: flex-start;
+        gap: 14px;
+    }
+
+    .document-icon {
+        width: 48px;
+        height: 56px;
+        border-radius: 16px;
+        flex: 0 0 auto;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--indigo);
+        background: linear-gradient(135deg, #ffffff, #dbeafe);
+        border: 1px solid rgba(148, 163, 184, 0.38);
+        box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
+    }
+
+    .document-title {
+        margin: 0;
+        font-size: 1rem;
+        font-weight: 850;
+        line-height: 1.25;
+    }
+
+    .document-meta {
+        color: var(--muted);
+        font-size: 0.82rem;
+    }
+
+    .summary-preview {
+        color: #475569;
+        line-height: 1.58;
+        font-size: 0.9rem;
+        margin: 16px 0 0;
+    }
+
+    .document-actions {
+        margin-top: auto;
+        padding-top: 18px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .action-btn {
+        border-radius: 999px;
+        font-size: 0.82rem;
+        font-weight: 700;
+        padding: 8px 12px;
+    }
+
+    .activity-scroll {
+        max-height: 330px;
+        overflow-y: auto;
+        padding-right: 8px;
+    }
+
+    .activity-list {
+        display: grid;
+        gap: 10px;
+    }
+
+    .session-list {
+        display: grid;
+        gap: 10px;
+    }
+
+    .achievement-list {
+        display: grid;
+        gap: 10px;
+    }
+
+    .activity-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 12px;
+        padding: 13px;
+        border: 1px solid rgba(226, 232, 240, 0.82);
+        border-radius: 16px;
+        background: rgba(248, 250, 252, 0.72);
+    }
+
+    .activity-main {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        min-width: 0;
+    }
+
+    .dashboard-side {
+        position: sticky;
+        top: 92px;
+        align-self: flex-start;
+        max-height: calc(100vh - 116px);
+        overflow-y: auto;
+        overflow-x: hidden;
+        padding-right: 6px;
+    }
+
+    .dashboard-side::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    .dashboard-side::-webkit-scrollbar-track {
+        border-radius: 999px;
+        background: rgba(226, 232, 240, 0.62);
+    }
+
+    .dashboard-side::-webkit-scrollbar-thumb {
+        border-radius: 999px;
+        background: rgba(99, 102, 241, 0.42);
+    }
+
+    .session-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        padding: 13px;
+        border: 1px solid rgba(226, 232, 240, 0.82);
+        border-radius: 16px;
+        color: #1e293b;
+        background: rgba(248, 250, 252, 0.72);
+        text-decoration: none;
+        transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+    }
+
+    .session-row:hover {
+        color: #1e293b;
+        transform: translateY(-1px);
+        border-color: rgba(99, 102, 241, 0.36);
+        background: #ffffff;
+    }
+
+    .achievement-card {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 14px;
+        border: 1px solid rgba(99, 102, 241, 0.18);
+        border-radius: 18px;
+        background:
+            linear-gradient(135deg, rgba(238, 242, 255, 0.94), rgba(240, 249, 255, 0.82)),
+            rgba(255, 255, 255, 0.8);
+    }
+
+    .achievement-badge {
+        width: 40px;
+        height: 40px;
+        border-radius: 15px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 auto;
+        color: #ffffff;
+        background: linear-gradient(135deg, #f59e0b, var(--indigo));
+        box-shadow: 0 12px 24px rgba(99, 102, 241, 0.22);
+    }
+
+    .achievement-title {
+        margin: 0;
+        font-size: 0.94rem;
+        font-weight: 900;
+    }
+
+    .achievement-description {
+        margin: 2px 0 0;
+        color: var(--muted);
+        font-size: 0.8rem;
+        line-height: 1.45;
+    }
+
+    .activity-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 13px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: #eef2ff;
+        color: #4f46e5;
+        flex: 0 0 auto;
+    }
+
+    .activity-title {
+        font-size: 0.9rem;
+        font-weight: 800;
+        margin: 0;
+    }
+
+    .session-title {
+        font-size: 0.9rem;
+        font-weight: 850;
+        margin: 0;
+    }
+
+    .activity-meta {
+        color: var(--muted);
+        font-size: 0.78rem;
+    }
+
+    .empty-state {
+        color: var(--muted);
+        border: 1px dashed rgba(148, 163, 184, 0.7);
+        border-radius: 18px;
+        padding: 18px;
+        background: rgba(248, 250, 252, 0.72);
+    }
+
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        padding: 6px 10px;
+        font-size: 0.74rem;
+        font-weight: 850;
+    }
+
+    .status-processing {
+        color: #1d4ed8;
+        background: #dbeafe;
+    }
+
+    .status-completed {
+        color: #047857;
+        background: #d1fae5;
+    }
+
+    .status-failed {
+        color: #b91c1c;
+        background: #fee2e2;
+    }
+
+    .status-pending {
+        color: #64748b;
+        background: #f1f5f9;
+    }
+
+    @keyframes cardIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @media (max-width: 1199px) {
+        .document-grid {
+            grid-template-columns: 1fr;
         }
 
-        .section-title {
-            font-size: 1rem;
-            font-weight: 700;
-            color: #111827;
+        .documents-scroll {
+            max-height: 1134px;
         }
 
-        .icon-badge {
-            width: 34px;
-            height: 34px;
-            border-radius: 8px;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            background: #eef2ff;
-            color: #3730a3;
-            flex: 0 0 auto;
+        .dashboard-side {
+            position: static;
+            max-height: none;
+            overflow: visible;
+            padding-right: 0;
+        }
+    }
+
+    @media (max-width: 767px) {
+        .hero-panel {
+            border-radius: 18px;
         }
 
-        .icon-badge.success {
-            background: #ecfdf5;
-            color: #047857;
+        .card-pad {
+            padding: 18px;
         }
 
-        .icon-badge.info {
-            background: #ecfeff;
-            color: #0e7490;
+        .section-heading {
+            align-items: flex-start;
+            flex-direction: column;
         }
 
-        .icon-badge.warning {
-            background: #fffbeb;
-            color: #b45309;
+        .document-actions .btn {
+            width: 100%;
         }
+    }
+</style>
 
-        .icon-badge.dark {
-            background: #1f2937;
-            color: #ffffff;
-        }
-
-        .compact-panel {
-            background: #ffffff;
-            border: 1px solid #e5e7eb;
-            border-radius: 8px;
-            overflow: hidden;
-        }
-
-        .compact-row {
-            padding: 12px 14px;
-            border-bottom: 1px solid #eef2f7;
-        }
-
-        .compact-row:last-child {
-            border-bottom: 0;
-        }
-
-        .item-title {
-            font-size: 0.95rem;
-            font-weight: 700;
-            color: #111827;
-            margin-bottom: 2px;
-        }
-
-        .item-meta {
-            font-size: 0.8rem;
-            color: #6b7280;
-        }
-
-        .summary-preview {
-            font-size: 0.85rem;
-            color: #4b5563;
-            margin: 8px 0 0;
-        }
-
-        .dashboard-grid {
-            display: grid;
-            grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
-            gap: 20px;
-        }
-
-        .stat-card {
-            border: 1px solid #e5e7eb;
-            border-radius: 8px;
-        }
-
-        .stat-card h5 {
-            font-size: 0.82rem;
-            color: #6b7280;
-            margin-bottom: 6px;
-        }
-
-        .stat-card h2 {
-            font-size: 1.75rem;
-            font-weight: 800;
-            color: #111827;
-            margin-bottom: 0;
-        }
-
-        .stat-content {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 12px;
-        }
-
-        .score-card {
-            background: #111827;
-            color: #ffffff;
-        }
-
-        .score-card h5,
-        .score-card h2 {
-            color: #ffffff;
-        }
-
-        @media (max-width: 992px) {
-            .dashboard-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-    </style>
-</head>
-<body>
-
-<nav class="navbar navbar-dark bg-dark">
-    <div class="container">
-        <span class="navbar-brand">
-            StudentAI
-        </span>
-
-        <a href="{% url 'logout' %}" class="btn btn-danger">
-            <i class="bi bi-box-arrow-right me-1"></i> Logout
-        </a>
+<section class="hero-panel mb-4">
+    <div class="hero-content p-4 p-lg-5">
+        <div class="row align-items-center g-4">
+            <div class="col-lg-8">
+                <div class="small-label text-white-50 mb-2">AI Learning Dashboard</div>
+                <h1 class="display-6 fw-bold mb-2">Mire se erdhe, {{ request.user.username }}</h1>
+                <p class="text-white-50 mb-0">
+                    Studio dokumentet, pyet AI, gjenero quiz-e dhe perserit me flashcards nga nje panel i vetem.
+                </p>
+            </div>
+            <div class="col-lg-4">
+                <div class="d-flex flex-wrap justify-content-lg-end gap-2">
+                    <a href="{% url 'multi_document_study' %}" class="btn btn-outline-light rounded-pill px-4">
+                        <i class="bi bi-collection me-1"></i> Multi Study
+                    </a>
+                    <a href="/leaderboard/" class="btn btn-outline-light rounded-pill px-4">
+                        <i class="bi bi-trophy me-1"></i> Leaderboard
+                    </a>
+                </div>
+            </div>
+        </div>
     </div>
-</nav>
+</section>
 
-<main class="container mt-5">
-    <div class="d-flex flex-wrap gap-2 mb-3">
-        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="history.back()">
-            <i class="bi bi-arrow-left me-1"></i> Kthehu mbrapa
-        </button>
-
-        <a href="{% url 'home' %}" class="btn btn-outline-secondary btn-sm">
-            <i class="bi bi-house me-1"></i> Home
-        </a>
+<section class="row g-3 mb-4">
+    <div class="col-sm-6 col-lg-4 col-xl-3">
+        <div class="glass-card stat-card">
+            <div class="card-pad">
+                <div class="d-flex justify-content-between align-items-start gap-3">
+                    <div>
+                        <p class="stat-label">Documents</p>
+                        <h2 class="stat-value">{{ documents_count }}</h2>
+                    </div>
+                    <span class="stat-icon"><i class="bi bi-file-earmark-text"></i></span>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <div class="d-flex justify-content-between align-items-center gap-3">
-        <h2 class="mb-0">
-            Mire se erdhe, {{ request.user.username }}
-        </h2>
+    <div class="col-sm-6 col-lg-4 col-xl-3">
+        <div class="glass-card stat-card">
+            <div class="card-pad">
+                <div class="d-flex justify-content-between align-items-start gap-3">
+                    <div>
+                        <p class="stat-label">Achievements</p>
+                        <h2 class="stat-value">{{ achievements_count }}</h2>
+                    </div>
+                    <span class="stat-icon"><i class="bi bi-award"></i></span>
+                </div>
+            </div>
+        </div>
+    </div>
 
-        <div class="d-flex flex-wrap gap-2">
-            <a href="{% url 'quiz_history' %}" class="btn btn-outline-success">
-                <i class="bi bi-clipboard-check me-1"></i> Historiku i Quizeve
-            </a>
+    <div class="col-sm-6 col-lg-4 col-xl-3">
+        <div class="glass-card stat-card">
+            <div class="card-pad">
+                <div class="d-flex justify-content-between align-items-start gap-3">
+                    <div>
+                        <p class="stat-label">Study Sessions</p>
+                        <h2 class="stat-value">{{ total_study_sessions }}</h2>
+                        <p class="stat-label mt-1">{{ active_study_sessions }} active</p>
+                    </div>
+                    <span class="stat-icon"><i class="bi bi-play-circle"></i></span>
+                </div>
+            </div>
+        </div>
+    </div>
 
-            <a href="{% url 'flashcard_history' %}" class="btn btn-outline-info">
-                <i class="bi bi-layers me-1"></i> Historiku i Flashcards
-            </a>
+    <div class="col-sm-6 col-lg-4 col-xl-3">
+        <div class="glass-card stat-card">
+            <div class="card-pad">
+                <div class="d-flex justify-content-between align-items-start gap-3">
+                    <div>
+                        <p class="stat-label">AI Summaries</p>
+                        <h2 class="stat-value">{{ summaries_count }}</h2>
+                    </div>
+                    <span class="stat-icon"><i class="bi bi-card-text"></i></span>
+                </div>
+            </div>
+        </div>
+    </div>
 
-            <a href="{% url 'multi_document_study' %}" class="btn btn-outline-dark">
-                <i class="bi bi-collection me-1"></i> Perseritje me disa materiale
-            </a>
+    <div class="col-sm-6 col-lg-4 col-xl-3">
+        <div class="glass-card stat-card">
+            <div class="card-pad">
+                <div class="d-flex justify-content-between align-items-start gap-3">
+                    <div>
+                        <p class="stat-label">Quizzes</p>
+                        <h2 class="stat-value">{{ quizzes_count }}</h2>
+                    </div>
+                    <span class="stat-icon"><i class="bi bi-ui-checks-grid"></i></span>
+                </div>
+            </div>
+        </div>
+    </div>
 
-            <a href="{% url 'upload_document' %}" class="btn btn-primary">
+    <div class="col-sm-6 col-lg-4 col-xl-3">
+        <div class="glass-card stat-card">
+            <div class="card-pad">
+                <div class="d-flex justify-content-between align-items-start gap-3">
+                    <div>
+                        <p class="stat-label">Flashcards</p>
+                        <h2 class="stat-value">{{ flashcards_count }}</h2>
+                    </div>
+                    <span class="stat-icon"><i class="bi bi-layers"></i></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-sm-6 col-lg-4 col-xl-3">
+        <div class="glass-card stat-card">
+            <div class="card-pad">
+                <div class="d-flex justify-content-between align-items-start gap-3">
+                    <div>
+                        <p class="stat-label">Average Quiz</p>
+                        <h2 class="stat-value">{{ average_quiz_score }}%</h2>
+                    </div>
+                    <span class="stat-icon"><i class="bi bi-bar-chart-line"></i></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-sm-6 col-lg-4 col-xl-3">
+        <div class="glass-card stat-card">
+            <div class="card-pad">
+                <div class="d-flex justify-content-between align-items-start gap-3">
+                    <div>
+                        <p class="stat-label">Improvement</p>
+                        <h2 class="stat-value">{{ improvement_rate }}%</h2>
+                    </div>
+                    <span class="stat-icon"><i class="bi bi-graph-up-arrow"></i></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-sm-6 col-lg-4 col-xl-3">
+        <div class="glass-card stat-card score-card">
+            <div class="card-pad">
+                <div class="d-flex justify-content-between align-items-start gap-3">
+                    <div>
+                        <p class="stat-label">Knowledge Score</p>
+                        <h2 class="stat-value">{{ knowledge_score }}/100</h2>
+                        <p class="stat-label mt-1">Student Score: +{{ total_points }}</p>
+                    </div>
+                    <span class="stat-icon"><i class="bi bi-trophy"></i></span>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<div class="row g-4">
+    <section class="col-xl-8">
+        <div class="section-heading">
+            <div>
+                <h2 class="section-title">Dokumentet e Mia</h2>
+                <p class="section-subtitle">Hap nje dokument dhe vazhdo mesimin me AI.</p>
+            </div>
+            <a href="{% url 'upload_document' %}" class="btn btn-premium px-4">
                 <i class="bi bi-cloud-arrow-up me-1"></i> Upload Document
             </a>
         </div>
-    </div>
 
-    <hr>
-
-    <div class="row g-3">
-        <div class="col-md-4">
-            <div class="card stat-card">
-                <div class="card-body">
-                    <div class="stat-content">
-                        <div>
-                            <h5>Dokumente</h5>
-                            <h2>{{ documents_count }}</h2>
-                        </div>
-                        <span class="icon-badge"><i class="bi bi-file-earmark-text"></i></span>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-md-4">
-            <div class="card stat-card">
-                <div class="card-body">
-                    <div class="stat-content">
-                        <div>
-                            <h5>Summary</h5>
-                            <h2>{{ summary_count }}</h2>
-                        </div>
-                        <span class="icon-badge success"><i class="bi bi-card-text"></i></span>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-md-4">
-            <div class="card stat-card score-card">
-                <div class="card-body">
-                    <div class="stat-content">
-                        <div>
-                            <h5>Student Score</h5>
-                            <h2>{{ total_points }}</h2>
-                        </div>
-                        <span class="icon-badge dark"><i class="bi bi-trophy"></i></span>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="row g-3 mt-1">
-        <div class="col-md-4">
-            <div class="card stat-card">
-                <div class="card-body">
-                    <div class="stat-content">
-                        <div>
-                            <h5>Chat AI</h5>
-                            <h2>{{ chat_count }}</h2>
-                        </div>
-                        <span class="icon-badge info"><i class="bi bi-chat-dots"></i></span>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-md-4">
-            <div class="card stat-card">
-                <div class="card-body">
-                    <div class="stat-content">
-                        <div>
-                            <h5>Quiz</h5>
-                            <h2>{{ quiz_count }}</h2>
-                        </div>
-                        <span class="icon-badge warning"><i class="bi bi-ui-checks-grid"></i></span>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-md-4">
-            <div class="card stat-card">
-                <div class="card-body">
-                    <div class="stat-content">
-                        <div>
-                            <h5>Flashcards</h5>
-                            <h2>{{ flashcards_count }}</h2>
-                        </div>
-                        <span class="icon-badge info"><i class="bi bi-layers"></i></span>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="dashboard-grid mt-4">
-        <section>
-            <div class="d-flex justify-content-between align-items-center mb-2">
-                <h3 class="section-title mb-0">Aktivitetet e Fundit</h3>
-                <span class="item-meta">10 te fundit</span>
-            </div>
-
-            {% if activities %}
-                <div class="compact-panel">
-                    {% for activity in activities %}
-                        <div class="compact-row d-flex justify-content-between align-items-center gap-3">
-                            <div class="d-flex align-items-center gap-3 min-w-0">
-                                <span class="icon-badge">
-                                    {% if activity.activity_type == 'chat' %}
-                                        <i class="bi bi-chat-dots"></i>
-                                    {% elif activity.activity_type == 'quiz' %}
-                                        <i class="bi bi-ui-checks-grid"></i>
-                                    {% elif activity.activity_type == 'flashcards' %}
-                                        <i class="bi bi-layers"></i>
-                                    {% else %}
-                                        <i class="bi bi-card-text"></i>
-                                    {% endif %}
-                                </span>
-                                <div class="min-w-0">
-                                    <div class="item-title">
-                                        {{ activity.get_activity_type_display }}
-                                    </div>
-                                    <div class="item-meta text-truncate" style="max-width: 280px;">
-                                        {{ activity.document_title }}
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="text-end flex-shrink-0">
-                                <span class="badge bg-primary-subtle text-primary">+{{ activity.points }}</span>
-                                <div class="item-meta mt-1">{{ activity.created_at|date:"d/m H:i" }}</div>
-                            </div>
-                        </div>
-                    {% endfor %}
-                </div>
-            {% else %}
-                <div class="compact-panel compact-row item-meta">
-                    Ende nuk ka aktivitete AI.
-                </div>
-            {% endif %}
-        </section>
-
-        <section>
-            <div class="d-flex justify-content-between align-items-center mb-2">
-                <h3 class="section-title mb-0">Dokumentet e Mia</h3>
-                <a href="{% url 'upload_document' %}" class="btn btn-primary btn-sm">
-                    <i class="bi bi-cloud-arrow-up me-1"></i> Upload
-                </a>
-            </div>
-
-            {% if documents %}
-                <div class="compact-panel">
+        {% if documents %}
+            <div class="documents-scroll">
+                <div class="document-grid">
                     {% for document in documents %}
-                        <div class="compact-row">
-                            <div class="d-flex justify-content-between align-items-start gap-3">
-                                <div class="d-flex align-items-start gap-3 min-w-0">
-                                    <span class="icon-badge success"><i class="bi bi-file-earmark-pdf"></i></span>
+                        <article class="glass-card document-card">
+                            <div class="card-pad d-flex flex-column h-100">
+                                <div class="document-top">
+                                    <span class="document-icon">
+                                        <i class="bi bi-file-earmark-pdf fs-4"></i>
+                                    </span>
                                     <div class="min-w-0">
-                                        <div class="item-title text-truncate" style="max-width: 420px;">
-                                            {{ document.title }}
-                                        </div>
-                                        <div class="item-meta text-truncate" style="max-width: 420px;">
+                                        <h3 class="document-title text-truncate">{{ document.title }}</h3>
+                                        <div class="document-meta text-truncate">
                                             {{ document.file.name }} - {{ document.uploaded_at|date:"d/m/Y H:i" }}
                                         </div>
+                                        <div class="d-flex flex-wrap gap-2 mt-2">
+                                            {% if document.summary_status == 'processing' %}
+                                                <span class="status-badge status-processing">Summary Processing</span>
+                                            {% elif document.summary_status == 'completed' %}
+                                                <span class="status-badge status-completed">Summary Completed</span>
+                                            {% elif document.summary_status == 'failed' %}
+                                                <span class="status-badge status-failed">Summary Failed</span>
+                                            {% else %}
+                                                <span class="status-badge status-pending">Summary Pending</span>
+                                            {% endif %}
+                                        </div>
                                     </div>
                                 </div>
 
-                                <div class="d-flex align-items-center gap-2 flex-shrink-0">
-                                    {% if document.ai_processed %}
-                                        <span class="badge bg-success-subtle text-success">AI</span>
-                                    {% endif %}
-                                    <a href="{% url 'document_study' document.id %}" class="btn btn-dark btn-sm">
-                                        <i class="bi bi-journal-text me-1"></i> Study
+                                {% if document.summary_status == 'failed' %}
+                                    <p class="summary-preview">
+                                        StudentAI could not generate the summary yet. You can still open and study this document.
+                                    </p>
+                                {% else %}
+                                    <p class="summary-preview">
+                                        {{ document.summary|default:"Ky dokument nuk ka ende permbledhje AI."|truncatechars:170 }}
+                                    </p>
+                                {% endif %}
+
+                                <div class="document-actions">
+                                    <a href="{% url 'start_study_session' document.id %}" class="btn btn-premium action-btn">
+                                        <i class="bi bi-play-circle me-1"></i> Start Study Session
+                                    </a>
+                                    <a href="{% url 'study_document' document.id %}" class="btn btn-premium action-btn">
+                                        <i class="bi bi-rocket-takeoff me-1"></i> Study Mode
+                                    </a>
+                                    <a href="{{ document.file.url }}" target="_blank" class="btn btn-soft action-btn">
+                                        <i class="bi bi-file-earmark-pdf me-1"></i> View PDF
+                                    </a>
+                                    <a href="{% url 'document_chat' document.id %}" class="btn btn-soft action-btn">
+                                        <i class="bi bi-chat-dots me-1"></i> Ask AI
+                                    </a>
+                                    <a href="{% url 'document_quiz' document.id %}" class="btn btn-soft action-btn">
+                                        <i class="bi bi-ui-checks-grid me-1"></i> Generate Quiz
+                                    </a>
+                                    <a href="{% url 'document_flashcards' document.id %}" class="btn btn-soft action-btn">
+                                        <i class="bi bi-layers me-1"></i> Flashcards
                                     </a>
                                 </div>
                             </div>
-
-                            {% if document.summary %}
-                                <p class="summary-preview">
-                                    {{ document.summary|truncatechars:120 }}
-                                </p>
-                            {% endif %}
-                        </div>
+                        </article>
                     {% endfor %}
                 </div>
-            {% else %}
-                <div class="compact-panel compact-row item-meta">
-                    Nuk ke ngarkuar ende dokumente.
+            </div>
+        {% else %}
+            <div class="glass-card">
+                <div class="card-pad empty-state">
+                    Nuk ke ngarkuar ende dokumente. Ngarko PDF-in e pare per te filluar.
                 </div>
-            {% endif %}
-        </section>
-    </div>
-</main>
+            </div>
+        {% endif %}
+    </section>
 
-</body>
-</html>
+    <aside class="col-xl-4 dashboard-side">
+        <div class="section-heading">
+            <div>
+                <h2 class="section-title">Aktivitetet e Fundit</h2>
+                <p class="section-subtitle">10 veprimet e fundit me AI.</p>
+            </div>
+        </div>
 
+        <div class="glass-card mb-4">
+            <div class="card-pad">
+                {% if activities %}
+                    <div class="activity-scroll">
+                        <div class="activity-list">
+                            {% for activity in activities %}
+                                <div class="activity-row">
+                                    <div class="activity-main">
+                                        <span class="activity-icon">
+                                            {% if activity.activity_type == 'chat' %}
+                                                <i class="bi bi-chat-dots"></i>
+                                            {% elif activity.activity_type == 'quiz' %}
+                                                <i class="bi bi-ui-checks-grid"></i>
+                                            {% elif activity.activity_type == 'flashcards' %}
+                                                <i class="bi bi-layers"></i>
+                                            {% else %}
+                                                <i class="bi bi-card-text"></i>
+                                            {% endif %}
+                                        </span>
+                                        <div class="min-w-0">
+                                            <p class="activity-title text-truncate">{{ activity.get_activity_type_display }}</p>
+                                            <div class="activity-meta text-truncate">
+                                                {{ activity.document_title }}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="text-end flex-shrink-0">
+                                        <span class="badge bg-primary-subtle text-primary">+{{ activity.points }}</span>
+                                        <div class="activity-meta mt-1">{{ activity.created_at|date:"d/m H:i" }}</div>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                {% else %}
+                    <div class="empty-state">
+                        Ende nuk ka aktivitete AI.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="section-heading">
+            <div>
+                <h2 class="section-title">Recommended Next Step</h2>
+                <p class="section-subtitle">StudentAI's next action for your learning path.</p>
+            </div>
+        </div>
+
+        <div class="glass-card mb-4 score-card">
+            <div class="card-pad">
+                <div class="d-flex align-items-start gap-3">
+                    <span class="stat-icon">
+                        <i class="bi bi-compass"></i>
+                    </span>
+                    <div class="min-w-0">
+                        <p class="stat-label mb-2">Next best action</p>
+                        <h3 class="h5 fw-bold mb-0">{{ next_study_action }}</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section-heading">
+            <div>
+                <h2 class="section-title">AI Learning Diagnosis</h2>
+                <p class="section-subtitle">Strengths and focus areas from quiz results.</p>
+            </div>
+        </div>
+
+        <div class="glass-card mb-4">
+            <div class="card-pad">
+                <div class="mb-4">
+                    <div class="d-flex align-items-center gap-2 mb-2">
+                        <span class="activity-icon">
+                            <i class="bi bi-stars"></i>
+                        </span>
+                        <h3 class="h6 fw-bold mb-0">Strong Areas</h3>
+                    </div>
+                    {% if strong_areas %}
+                        <div class="activity-list">
+                            {% for area in strong_areas %}
+                                <div class="activity-row">
+                                    <div class="min-w-0">
+                                        <p class="activity-title text-truncate">{{ area.topic }}</p>
+                                        <div class="activity-meta">Average quiz score</div>
+                                    </div>
+                                    <span class="badge bg-success">{{ area.average_score }}%</span>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="empty-state">
+                            No strong areas identified yet.
+                        </div>
+                    {% endif %}
+                </div>
+
+                <div class="mb-4">
+                    <div class="d-flex align-items-center gap-2 mb-2">
+                        <span class="activity-icon">
+                            <i class="bi bi-exclamation-triangle"></i>
+                        </span>
+                        <h3 class="h6 fw-bold mb-0">Weak Areas</h3>
+                    </div>
+                    {% if weak_areas %}
+                        <div class="activity-list">
+                            {% for area in weak_areas %}
+                                <div class="activity-row">
+                                    <div class="min-w-0">
+                                        <p class="activity-title text-truncate">{{ area.topic }}</p>
+                                        <div class="activity-meta">Average quiz score</div>
+                                    </div>
+                                    <span class="badge bg-warning text-dark">{{ area.average_score }}%</span>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="empty-state">
+                            No weak areas identified yet.
+                        </div>
+                    {% endif %}
+                </div>
+
+                <div class="achievement-card">
+                    <span class="achievement-badge">
+                        <i class="bi bi-lightbulb-fill"></i>
+                    </span>
+                    <div class="min-w-0">
+                        <p class="achievement-title">Recommendation</p>
+                        <p class="achievement-description">{{ learning_recommendation }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section-heading">
+            <div>
+                <h2 class="section-title">Recent Study Sessions</h2>
+                <p class="section-subtitle">{{ completed_study_sessions }} completed, {{ active_study_sessions }} active.</p>
+            </div>
+        </div>
+
+        <div class="glass-card mb-4">
+            <div class="card-pad">
+                {% if last_study_sessions %}
+                    <div class="session-list">
+                        {% for session in last_study_sessions %}
+                            <a href="{% url 'study_session_detail' session.id %}" class="session-row">
+                                <div class="min-w-0">
+                                    <p class="session-title text-truncate">{{ session.document.title }}</p>
+                                    <div class="activity-meta">
+                                        {{ session.started_at|date:"d/m H:i" }}
+                                        {% if session.completed_at %}
+                                            - completed {{ session.completed_at|date:"d/m H:i" }}
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="text-end flex-shrink-0">
+                                    {% if session.status == 'completed' %}
+                                        <span class="badge bg-success">{{ session.session_score }}/100</span>
+                                    {% else %}
+                                        <span class="badge bg-primary">Active</span>
+                                    {% endif %}
+                                </div>
+                            </a>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="empty-state">
+                        No study sessions yet. Start one from a document card.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="section-heading">
+            <div>
+                <h2 class="section-title">Recent Achievements</h2>
+                <p class="section-subtitle">{{ achievements_count }} badges earned.</p>
+            </div>
+        </div>
+
+        <div class="glass-card mb-4">
+            <div class="card-pad">
+                {% if recent_achievements %}
+                    <div class="achievement-list">
+                        {% for achievement in recent_achievements %}
+                            <div class="achievement-card">
+                                <span class="achievement-badge">
+                                    <i class="bi bi-award-fill"></i>
+                                </span>
+                                <div class="min-w-0">
+                                    <p class="achievement-title">{{ achievement.title }}</p>
+                                    <p class="achievement-description">{{ achievement.description }}</p>
+                                    <div class="activity-meta mt-1">{{ achievement.created_at|date:"d/m H:i" }}</div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="empty-state">
+                        No achievements yet. Upload a document or complete a quiz to earn your first badge.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+    </aside>
+</div>
+{% endblock %}

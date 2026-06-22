@@ -1,0 +1,275 @@
+{% extends 'accounts/base_app.html' %}
+
+{% block title %}Study Session{% endblock %}
+
+{% block content %}
+<style>
+    .session-page {
+        display: grid;
+        gap: 22px;
+    }
+
+    .hero-panel,
+    .session-card,
+    .metric-card {
+        border: 1px solid var(--border);
+        border-radius: 24px;
+        background: var(--surface);
+        box-shadow: 0 18px 48px rgba(15, 23, 42, 0.1);
+        backdrop-filter: blur(18px);
+        -webkit-backdrop-filter: blur(18px);
+    }
+
+    .hero-panel {
+        position: relative;
+        overflow: hidden;
+        color: #ffffff;
+        background:
+            linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(49, 46, 129, 0.9)),
+            radial-gradient(circle at 82% 20%, rgba(56, 189, 248, 0.28), transparent 24rem);
+    }
+
+    .hero-panel::after {
+        content: "";
+        position: absolute;
+        inset: auto -12% -70% 42%;
+        height: 280px;
+        background: radial-gradient(circle, rgba(99, 102, 241, 0.42), transparent 68%);
+        pointer-events: none;
+    }
+
+    .hero-content {
+        position: relative;
+        z-index: 1;
+        padding: 28px;
+    }
+
+    .eyebrow {
+        color: #bfdbfe;
+        font-size: 0.78rem;
+        font-weight: 900;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .session-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.8fr);
+        gap: 18px;
+        align-items: start;
+    }
+
+    .card-pad {
+        padding: 22px;
+    }
+
+    .status-pill {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        padding: 8px 12px;
+        color: #ffffff;
+        font-weight: 900;
+        background: linear-gradient(135deg, var(--indigo), var(--blue));
+    }
+
+    .status-pill.completed {
+        background: linear-gradient(135deg, #059669, #10b981);
+    }
+
+    .section-title {
+        margin: 0;
+        color: #111827;
+        font-size: 1.05rem;
+        font-weight: 900;
+    }
+
+    .section-subtitle {
+        margin: 4px 0 0;
+        color: var(--muted);
+        font-size: 0.9rem;
+    }
+
+    .detail-list {
+        display: grid;
+        gap: 12px;
+    }
+
+    .detail-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        border-radius: 16px;
+        background: rgba(248, 250, 252, 0.82);
+        padding: 14px;
+    }
+
+    .detail-label {
+        color: var(--muted);
+        font-size: 0.84rem;
+        font-weight: 800;
+    }
+
+    .detail-value {
+        color: #111827;
+        font-weight: 900;
+        text-align: right;
+    }
+
+    .metrics-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 14px;
+    }
+
+    .metric-card {
+        padding: 20px;
+    }
+
+    .metric-label {
+        margin: 0;
+        color: var(--muted);
+        font-size: 0.84rem;
+        font-weight: 800;
+    }
+
+    .metric-value {
+        margin: 6px 0 0;
+        color: #111827;
+        font-size: 2rem;
+        font-weight: 950;
+    }
+
+    .btn-premium,
+    .btn-soft {
+        border-radius: 14px;
+        font-weight: 850;
+        transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+    }
+
+    .btn-premium {
+        border: 0;
+        color: #ffffff;
+        background: linear-gradient(135deg, var(--indigo), var(--blue));
+        box-shadow: 0 14px 30px rgba(37, 99, 235, 0.24);
+    }
+
+    .btn-premium:hover {
+        color: #ffffff;
+        transform: translateY(-1px);
+        box-shadow: 0 18px 40px rgba(37, 99, 235, 0.32);
+    }
+
+    .btn-soft {
+        border: 1px solid rgba(148, 163, 184, 0.32);
+        color: #1e293b;
+        background: rgba(255, 255, 255, 0.82);
+    }
+
+    .btn-soft:hover {
+        color: #1e293b;
+        background: #ffffff;
+        transform: translateY(-1px);
+    }
+
+    @media (max-width: 991px) {
+        .session-grid,
+        .metrics-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+<div class="session-page">
+    <section class="hero-panel">
+        <div class="hero-content">
+            <div class="eyebrow mb-2">Study Session</div>
+            <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
+                <div>
+                    <h1 class="display-6 fw-bold mb-2">{{ session.document.title }}</h1>
+                    <p class="text-white-50 mb-0">
+                        Track your study progress for this document.
+                    </p>
+                </div>
+                {% if session.status == 'completed' %}
+                    <span class="status-pill completed">Completed</span>
+                {% else %}
+                    <span class="status-pill">Started</span>
+                {% endif %}
+            </div>
+        </div>
+    </section>
+
+    <section class="metrics-grid">
+        <div class="metric-card">
+            <p class="metric-label">Quiz Score</p>
+            <p class="metric-value">{{ session.quiz_score }}/{{ session.total_questions }}</p>
+        </div>
+
+        <div class="metric-card">
+            <p class="metric-label">Session Score</p>
+            <p class="metric-value">{{ session.session_score }}/100</p>
+        </div>
+
+        <div class="metric-card">
+            <p class="metric-label">Status</p>
+            <p class="metric-value">{{ session.get_status_display }}</p>
+        </div>
+    </section>
+
+    <div class="session-grid">
+        <section class="session-card">
+            <div class="card-pad">
+                <h2 class="section-title">Session Details</h2>
+                <p class="section-subtitle mb-3">Timing and linked document information.</p>
+
+                <div class="detail-list">
+                    <div class="detail-row">
+                        <span class="detail-label">Document</span>
+                        <span class="detail-value">{{ session.document.title }}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Started</span>
+                        <span class="detail-value">{{ session.started_at|date:"d/m/Y H:i" }}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Completed</span>
+                        <span class="detail-value">
+                            {% if session.completed_at %}
+                                {{ session.completed_at|date:"d/m/Y H:i" }}
+                            {% else %}
+                                Not completed yet
+                            {% endif %}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <aside class="session-card">
+            <div class="card-pad">
+                <h2 class="section-title">Actions</h2>
+                <p class="section-subtitle mb-3">Continue or close this study session.</p>
+
+                <div class="d-grid gap-2">
+                    <a href="{% url 'study_document' session.document.id %}" class="btn btn-premium">
+                        Continue Study
+                    </a>
+                    {% if session.status != 'completed' %}
+                        <form method="POST" action="{% url 'complete_study_session' session.id %}">
+                            {% csrf_token %}
+                            <button class="btn btn-soft w-100" type="submit">
+                                Complete Session
+                            </button>
+                        </form>
+                    {% endif %}
+                    <a href="{% url 'dashboard' %}" class="btn btn-soft">
+                        Back to Dashboard
+                    </a>
+                </div>
+            </div>
+        </aside>
+    </div>
+</div>
+{% endblock %}

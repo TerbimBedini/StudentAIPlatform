@@ -1,11 +1,38 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Virtual environments
 venv/
+.venv/
+env/
+
+# Django/local runtime
+db.sqlite3
+db.sqlite3-journal
+media/
+staticfiles/
+*.log
+
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+
+# Local tooling
+.vscode/
+.idea/
+
+# Generated/local app data
+chroma_db/
+lovable_frontend/
+
 __pycache__/
 *.pyc
-
-media/
-
 db.sqlite3
-
-.vscode/
-
-lovable_frontend/
+studentai_er_diagram.png
+media/

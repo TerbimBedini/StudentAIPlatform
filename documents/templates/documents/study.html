@@ -1,501 +1,1048 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>StudentAI Study</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
-    <style>
-        body {
-            background: #f6f8fb;
+{% extends 'accounts/base_app.html' %}
+
+{% block title %}Study Mode{% endblock %}
+
+{% block content %}
+<style>
+    .study-page {
+        display: grid;
+        gap: 22px;
+    }
+
+    .study-hero,
+    .study-card {
+        border: 1px solid var(--border);
+        border-radius: 24px;
+        background: var(--surface);
+        box-shadow: 0 18px 48px rgba(15, 23, 42, 0.1);
+        backdrop-filter: blur(18px);
+        -webkit-backdrop-filter: blur(18px);
+    }
+
+    .study-hero {
+        position: relative;
+        overflow: hidden;
+        color: #ffffff;
+        background:
+            linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(49, 46, 129, 0.9)),
+            radial-gradient(circle at 82% 20%, rgba(56, 189, 248, 0.28), transparent 24rem);
+    }
+
+    .study-hero::after {
+        content: "";
+        position: absolute;
+        inset: auto -12% -70% 44%;
+        height: 280px;
+        background: radial-gradient(circle, rgba(99, 102, 241, 0.42), transparent 68%);
+        pointer-events: none;
+    }
+
+    .study-hero-content {
+        position: relative;
+        z-index: 1;
+        padding: 28px;
+    }
+
+    .hero-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 18px;
+    }
+
+    .toggle-document-btn,
+    .hero-action-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.22);
+        border-radius: 999px;
+        color: #ffffff;
+        background: rgba(255, 255, 255, 0.12);
+        padding: 9px 14px;
+        font-size: 0.86rem;
+        font-weight: 850;
+        text-decoration: none;
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        transition: transform 0.18s ease, background 0.18s ease, border-color 0.18s ease;
+    }
+
+    .toggle-document-btn {
+        min-width: 46px;
+        min-height: 46px;
+        border-color: rgba(99, 102, 241, 0.28);
+        color: #ffffff;
+        background: linear-gradient(135deg, var(--indigo), var(--blue));
+        box-shadow: 0 18px 42px rgba(37, 99, 235, 0.28);
+    }
+
+    .toggle-document-btn:hover {
+        transform: translateY(-1px);
+    }
+
+    .toggle-document-icon {
+        font-size: 1rem;
+        line-height: 1;
+    }
+
+    .toggle-document-btn:hover,
+    .hero-action-btn:hover {
+        color: #ffffff;
+        background: rgba(255, 255, 255, 0.18);
+        border-color: rgba(255, 255, 255, 0.34);
+    }
+
+    .hero-action-btn:hover {
+        transform: translateY(-1px);
+    }
+
+    .eyebrow {
+        color: #bfdbfe;
+        font-size: 0.78rem;
+        font-weight: 900;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .study-grid {
+        display: grid;
+        grid-template-columns: minmax(190px, 0.46fr) minmax(340px, 0.88fr) minmax(440px, 1.34fr);
+        gap: 18px;
+        align-items: stretch;
+        transition: grid-template-columns 0.22s ease;
+    }
+
+    .study-page.document-collapsed .study-grid {
+        grid-template-columns: minmax(340px, 0.8fr) minmax(520px, 1.35fr);
+    }
+
+    .study-card {
+        min-width: 0;
+        transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    .study-card:hover {
+        transform: translateY(-2px);
+        border-color: rgba(99, 102, 241, 0.36);
+        box-shadow: 0 22px 58px rgba(15, 23, 42, 0.13);
+    }
+
+    .card-pad {
+        height: 100%;
+        padding: 20px;
+    }
+
+    .document-card .card-pad,
+    .summary-card .card-pad,
+    .chat-card .card-pad {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+    }
+
+    .document-card {
+        overflow: hidden;
+    }
+
+    .study-page.document-collapsed .document-card {
+        display: none;
+    }
+
+    .doc-compact-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 12px;
+    }
+
+    .section-heading {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 16px;
+    }
+
+    .section-icon {
+        width: 42px;
+        height: 42px;
+        border-radius: 15px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #ffffff;
+        font-weight: 900;
+        background: linear-gradient(135deg, var(--indigo), var(--blue));
+        box-shadow: 0 12px 26px rgba(99, 102, 241, 0.25);
+        flex: 0 0 auto;
+    }
+
+    .section-title {
+        margin: 0;
+        color: #111827;
+        font-size: 1rem;
+        font-weight: 900;
+    }
+
+    .section-subtitle {
+        margin: 2px 0 0;
+        color: var(--muted);
+        font-size: 0.86rem;
+    }
+
+    .pdf-icon {
+        width: 46px;
+        height: 54px;
+        border-radius: 15px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--indigo);
+        font-size: 0.92rem;
+        font-weight: 950;
+        background: linear-gradient(135deg, #ffffff, #dbeafe);
+        border: 1px solid rgba(148, 163, 184, 0.28);
+        box-shadow: 0 14px 34px rgba(15, 23, 42, 0.12);
+    }
+
+    .doc-title {
+        color: #111827;
+        font-weight: 900;
+        line-height: 1.24;
+        overflow-wrap: anywhere;
+        font-size: 0.98rem;
+    }
+
+    .meta-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 11px;
+        border-radius: 999px;
+        color: #334155;
+        background: rgba(241, 245, 249, 0.78);
+        border: 1px solid rgba(148, 163, 184, 0.24);
+        font-size: 0.82rem;
+        font-weight: 750;
+    }
+
+    .document-card .meta-pill {
+        max-width: 100%;
+        font-size: 0.74rem;
+        padding: 6px 9px;
+    }
+
+    .grounded-note {
+        border: 1px solid rgba(56, 189, 248, 0.24);
+        border-radius: 18px;
+        color: #075985;
+        background: rgba(224, 242, 254, 0.72);
+        padding: 13px;
+        font-size: 0.88rem;
+    }
+
+    .document-card .grounded-note {
+        border-radius: 14px;
+        padding: 10px;
+        font-size: 0.78rem;
+    }
+
+    .btn-premium {
+        border: 0;
+        border-radius: 14px;
+        color: #ffffff;
+        font-weight: 850;
+        background: linear-gradient(135deg, var(--indigo), var(--blue));
+        box-shadow: 0 14px 30px rgba(37, 99, 235, 0.24);
+        transition: transform 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    .btn-premium:hover {
+        color: #ffffff;
+        transform: translateY(-1px);
+        box-shadow: 0 18px 40px rgba(37, 99, 235, 0.32);
+    }
+
+    .btn-soft {
+        border: 1px solid rgba(148, 163, 184, 0.32);
+        border-radius: 14px;
+        color: #1e293b;
+        background: rgba(255, 255, 255, 0.82);
+        font-weight: 850;
+        transition: transform 0.18s ease, background 0.18s ease, border-color 0.18s ease;
+    }
+
+    .btn-soft:hover {
+        color: #1e293b;
+        background: #ffffff;
+        border-color: rgba(99, 102, 241, 0.38);
+        transform: translateY(-1px);
+    }
+
+    .action-grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 10px;
+        padding-top: 0;
+    }
+
+    .action-tile {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        border: 1px solid rgba(148, 163, 184, 0.24);
+        border-radius: 999px;
+        color: #111827;
+        background:
+            linear-gradient(135deg, rgba(238, 242, 255, 0.95), rgba(240, 249, 255, 0.82)),
+            rgba(248, 250, 252, 0.78);
+        padding: 9px 12px;
+        text-decoration: none;
+        font-size: 0.82rem;
+        font-weight: 900;
+        transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+    }
+
+    .action-tile:hover {
+        color: #111827;
+        transform: translateY(-1px);
+        border-color: rgba(99, 102, 241, 0.38);
+        background: #ffffff;
+    }
+
+    .action-tile-title {
+        display: inline;
+        font-size: 0.82rem;
+        font-weight: 900;
+    }
+
+    .action-tile-text {
+        display: none;
+        color: var(--muted);
+        font-size: 0.76rem;
+        line-height: 1.3;
+    }
+
+    .action-tile-icon {
+        width: 24px;
+        height: 24px;
+        border-radius: 9px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 auto;
+        color: #ffffff;
+        font-weight: 900;
+        background: linear-gradient(135deg, var(--indigo), var(--blue));
+    }
+
+    .summary-copy,
+    .chat-bubble,
+    .user-bubble {
+        white-space: pre-wrap;
+        line-height: 1.68;
+    }
+
+    .summary-copy {
+        flex: 1;
+        min-height: 320px;
+        max-height: 560px;
+        overflow: auto;
+        border: 1px solid rgba(203, 213, 225, 0.76);
+        border-radius: 18px;
+        background: rgba(248, 250, 252, 0.84);
+        padding: 16px;
+        color: #263244;
+    }
+
+    .empty-state {
+        border: 1px dashed rgba(148, 163, 184, 0.68);
+        border-radius: 18px;
+        color: #64748b;
+        background: rgba(248, 250, 252, 0.72);
+        padding: 16px;
+    }
+
+    .workspace-results {
+        grid-column: 1 / -1;
+        display: grid;
+        gap: 18px;
+    }
+
+    .result-card {
+        border: 1px solid var(--border);
+        border-radius: 24px;
+        background: var(--surface);
+        box-shadow: 0 18px 48px rgba(15, 23, 42, 0.1);
+        padding: 20px;
+    }
+
+    .question-card,
+    .flashcard-card {
+        border: 1px solid rgba(203, 213, 225, 0.76);
+        border-radius: 20px;
+        background: rgba(248, 250, 252, 0.86);
+        padding: 18px;
+        margin-bottom: 14px;
+    }
+
+    .option-input {
+        position: absolute;
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    .option-label {
+        min-height: 100%;
+        border: 1px solid rgba(148, 163, 184, 0.28);
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.84);
+        cursor: pointer;
+        transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+    }
+
+    .option-input:checked + .option-label {
+        border-color: rgba(99, 102, 241, 0.7);
+        background: #eef2ff;
+    }
+
+    .flashcard-answer {
+        border-radius: 16px;
+        border: 1px solid rgba(148, 163, 184, 0.34);
+        background: rgba(255, 255, 255, 0.86);
+    }
+
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        padding: 6px 10px;
+        font-size: 0.74rem;
+        font-weight: 850;
+    }
+
+    .status-processing {
+        color: #1d4ed8;
+        background: #dbeafe;
+    }
+
+    .status-completed {
+        color: #047857;
+        background: #d1fae5;
+    }
+
+    .status-failed {
+        color: #b91c1c;
+        background: #fee2e2;
+    }
+
+    .status-pending {
+        color: #64748b;
+        background: #f1f5f9;
+    }
+
+    .chat-card {
+        height: calc(100vh - 168px);
+        min-height: 620px;
+        max-height: 820px;
+        overflow: hidden;
+    }
+
+    .chat-card .card-pad {
+        max-height: inherit;
+        overflow: hidden;
+    }
+
+    .chat-shell {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        flex: 1;
+        min-height: 0;
+        overflow: hidden;
+    }
+
+    .chat-thread {
+        display: flex;
+        flex: 1;
+        flex-direction: column;
+        gap: 12px;
+        min-height: 0;
+        overflow: auto;
+        padding: 6px 8px 6px 0;
+        scroll-behavior: smooth;
+    }
+
+    .chat-message {
+        display: flex;
+        gap: 12px;
+        align-items: flex-start;
+        width: 100%;
+    }
+
+    .chat-message.user {
+        justify-content: flex-end;
+    }
+
+    .ai-avatar,
+    .user-avatar {
+        width: 36px;
+        height: 36px;
+        border-radius: 14px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 auto;
+        color: #ffffff;
+        font-size: 0.78rem;
+        font-weight: 950;
+        background: linear-gradient(135deg, var(--indigo), var(--blue));
+    }
+
+    .user-avatar {
+        background: #0f172a;
+    }
+
+    .chat-bubble,
+    .user-bubble {
+        min-width: 0;
+        max-width: min(820px, 88%);
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        border-radius: 20px;
+        border-top-left-radius: 8px;
+        color: #111827;
+        background: rgba(248, 250, 252, 0.86);
+        padding: 13px 15px;
+    }
+
+    .user-bubble {
+        max-width: min(680px, 82%);
+        color: #ffffff;
+        background: linear-gradient(135deg, rgba(99, 102, 241, 0.94), rgba(37, 99, 235, 0.9));
+        border-top-left-radius: 20px;
+        border-top-right-radius: 8px;
+    }
+
+    .chat-label {
+        color: var(--indigo);
+        font-size: 0.78rem;
+        font-weight: 900;
+        margin-bottom: 8px;
+    }
+
+    .chat-composer {
+        border: 1px solid rgba(148, 163, 184, 0.28);
+        border-radius: 18px;
+        background: #ffffff;
+        padding: 8px;
+        box-shadow: 0 16px 42px rgba(15, 23, 42, 0.08);
+    }
+
+    .chat-input {
+        min-height: 54px;
+        max-height: 130px;
+        border: 0;
+        border-radius: 14px;
+        color: #111827;
+        background: transparent;
+        resize: vertical;
+        box-shadow: none;
+    }
+
+    .chat-input:focus {
+        color: #111827;
+        background: transparent;
+        box-shadow: none;
+    }
+
+    .summary-copy::-webkit-scrollbar,
+    .chat-thread::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    .summary-copy::-webkit-scrollbar-track,
+    .chat-thread::-webkit-scrollbar-track {
+        border-radius: 999px;
+        background: rgba(226, 232, 240, 0.62);
+    }
+
+    .summary-copy::-webkit-scrollbar-thumb,
+    .chat-thread::-webkit-scrollbar-thumb {
+        border-radius: 999px;
+        background: rgba(99, 102, 241, 0.48);
+    }
+
+    @media (max-width: 1199px) {
+        .study-grid {
+            grid-template-columns: 1fr 1fr;
         }
 
-        .studio-header {
-            background: #111827;
-            color: #ffffff;
+        .study-page.document-collapsed .study-grid {
+            grid-template-columns: 1fr 1fr;
         }
 
-        .studio-title {
-            max-width: 720px;
+        .chat-card {
+            grid-column: 1 / -1;
+            height: 72vh;
+            min-height: 560px;
+            max-height: none;
+        }
+    }
+
+    @media (max-width: 767px) {
+        .study-hero-content {
+            padding: 22px;
         }
 
-        .studio-panel {
-            background: #ffffff;
-            border: 1px solid #e5e7eb;
-            border-radius: 8px;
-            padding: 20px;
+        .study-grid {
+            grid-template-columns: 1fr;
         }
 
-        .document-frame {
-            width: 100%;
-            height: 68vh;
-            border: 1px solid #d1d5db;
-            border-radius: 8px;
-            background: #ffffff;
-        }
-
-        .nav-tabs .nav-link {
-            color: #374151;
-            font-weight: 600;
-        }
-
-        .nav-tabs .nav-link.active {
-            color: #111827;
-        }
-
-        .chat-panel {
+        .chat-card {
+            grid-column: auto;
+            height: 70vh;
             min-height: 520px;
-            display: flex;
-            flex-direction: column;
         }
 
-        .chat-messages {
-            flex: 1;
-            padding: 18px;
-            overflow-y: auto;
-            background: #f9fafb;
-            border: 1px solid #e5e7eb;
-            border-radius: 8px;
-        }
+    }
+</style>
 
-        .message-row {
-            display: flex;
-            margin-bottom: 14px;
-        }
-
-        .message-row.user {
-            justify-content: flex-end;
-        }
-
-        .message-bubble {
-            max-width: 78%;
-            padding: 12px 14px;
-            border-radius: 8px;
-            line-height: 1.55;
-            white-space: pre-wrap;
-        }
-
-        .message-row.ai .message-bubble {
-            background: #ffffff;
-            border: 1px solid #e5e7eb;
-            color: #111827;
-        }
-
-        .message-row.user .message-bubble {
-            background: #198754;
-            color: #ffffff;
-        }
-
-        .option-input {
-            display: none;
-        }
-
-        .option-label {
-            cursor: pointer;
-            transition: border-color 0.15s ease, background-color 0.15s ease;
-        }
-
-        .option-input:checked + .option-label {
-            border-color: #198754;
-            background-color: #e9f7ef;
-        }
-
-        .summary-text {
-            white-space: pre-wrap;
-            line-height: 1.65;
-        }
-
-        .panel-title {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .panel-title i,
-        .nav-link i {
-            color: #4f46e5;
-        }
-    </style>
-</head>
-<body>
-
-<header class="studio-header py-3">
-    <div class="container d-flex flex-wrap justify-content-between align-items-center gap-3">
-        <div class="studio-title">
-            <a href="{% url 'dashboard' %}" class="text-white text-decoration-none fw-bold">StudentAI</a>
-            <h1 class="h3 mt-2 mb-1">Study Workspace</h1>
-            <p class="mb-0 text-white-50">{{ document.title }}</p>
+<div class="study-page document-collapsed">
+    <section class="study-hero">
+        <div class="study-hero-content">
+            <div class="eyebrow mb-2">AI Study Workspace</div>
+            <h1 class="display-6 fw-bold mb-2">{{ document.title }}</h1>
+            <p class="text-white-50 mb-0">
+                Summary, quiz, flashcards, and AI tutoring grounded in your uploaded document.
+            </p>
+            <div class="hero-actions">
+                <button class="toggle-document-btn" type="button" aria-expanded="true">
+                    <span class="toggle-document-icon">D</span>
+                    <span class="toggle-document-label">Document</span>
+                </button>
+                <a href="{% url 'document_quiz' document.id %}" class="hero-action-btn">
+                    <span>Q</span>
+                    Quiz
+                </a>
+                <a href="{% url 'document_flashcards' document.id %}" class="hero-action-btn">
+                    <span>F</span>
+                    Flashcards
+                </a>
+                <a href="{% url 'exam_simulator' document.id %}" class="hero-action-btn">
+                    <span>🎯</span>
+                    Simulate Exam
+                </a>
+            </div>
         </div>
+    </section>
 
-        <div class="d-flex flex-wrap gap-2">
-            <button type="button" class="btn btn-outline-light btn-sm" onclick="history.back()">
-                <i class="bi bi-arrow-left me-1"></i> Kthehu
-            </button>
-            <a href="{% url 'dashboard' %}" class="btn btn-light btn-sm">
-                <i class="bi bi-speedometer2 me-1"></i> Dashboard
-            </a>
-            <a href="{% url 'home' %}" class="btn btn-outline-light btn-sm">
-                <i class="bi bi-house me-1"></i> Home
-            </a>
-        </div>
-    </div>
-</header>
-
-<main class="container py-4">
-    {% if error_message %}
-        <div class="alert alert-warning">
-            {{ error_message }}
-        </div>
-    {% endif %}
-
-    <ul class="nav nav-tabs mb-3" id="studyTabs" role="tablist">
-        <li class="nav-item" role="presentation">
-            <button class="nav-link {% if active_tab == 'document' %}active{% endif %}" id="document-tab" data-bs-toggle="tab" data-bs-target="#document-pane" type="button" role="tab">
-                <i class="bi bi-file-earmark-text me-1"></i> Dokumenti
-            </button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link {% if active_tab == 'summary' %}active{% endif %}" id="summary-tab" data-bs-toggle="tab" data-bs-target="#summary-pane" type="button" role="tab">
-                <i class="bi bi-card-text me-1"></i> Summary
-            </button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link {% if active_tab == 'quiz' %}active{% endif %}" id="quiz-tab" data-bs-toggle="tab" data-bs-target="#quiz-pane" type="button" role="tab">
-                <i class="bi bi-ui-checks-grid me-1"></i> Quiz
-            </button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link {% if active_tab == 'flashcards' %}active{% endif %}" id="flashcards-tab" data-bs-toggle="tab" data-bs-target="#flashcards-pane" type="button" role="tab">
-                <i class="bi bi-layers me-1"></i> Flashcards
-            </button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link {% if active_tab == 'chat' %}active{% endif %}" id="chat-tab" data-bs-toggle="tab" data-bs-target="#chat-pane" type="button" role="tab">
-                <i class="bi bi-chat-dots me-1"></i> Chat
-            </button>
-        </li>
-    </ul>
-
-    <div class="tab-content">
-        <section class="tab-pane fade {% if active_tab == 'document' %}show active{% endif %}" id="document-pane" role="tabpanel" aria-labelledby="document-tab">
-            <div class="studio-panel">
-                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <div class="study-grid">
+        <aside class="study-card document-card">
+            <div class="card-pad">
+                <div class="section-heading">
+                    <span class="section-icon">D</span>
                     <div>
-                        <h2 class="h5 mb-1 panel-title"><i class="bi bi-file-earmark-text"></i> Dokumenti</h2>
-                        <p class="text-muted mb-0">{{ document.file.name }}</p>
+                        <h2 class="section-title">Dokumenti</h2>
+                        <p class="section-subtitle">Selected source file</p>
                     </div>
-                    <a href="{% url 'document_file' document.id %}" class="btn btn-outline-primary btn-sm" target="_blank">
-                        <i class="bi bi-box-arrow-up-right me-1"></i> Hap origjinalin
-                    </a>
                 </div>
 
-                {% if is_pdf %}
-                    <iframe class="document-frame" src="{% url 'document_file' document.id %}"></iframe>
-                {% else %}
-                    <div class="alert alert-info mb-0">
-                        Ky format nuk shfaqet direkt ne faqe. Hape dokumentin origjinal per ta pare.
-                    </div>
-                {% endif %}
-            </div>
-        </section>
-
-        <section class="tab-pane fade {% if active_tab == 'summary' %}show active{% endif %}" id="summary-pane" role="tabpanel" aria-labelledby="summary-tab">
-            <div class="studio-panel">
-                <h2 class="h5 panel-title"><i class="bi bi-card-text"></i> Summary</h2>
-                {% if document.summary %}
-                    <div class="summary-text mt-3">{{ document.summary }}</div>
-                {% else %}
-                    <div class="alert alert-info mt-3 mb-0">
-                        Ky dokument nuk ka ende permbledhje AI.
-                    </div>
-                {% endif %}
-            </div>
-        </section>
-
-        <section class="tab-pane fade {% if active_tab == 'quiz' %}show active{% endif %}" id="quiz-pane" role="tabpanel" aria-labelledby="quiz-tab">
-            <div class="studio-panel">
-                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-                    <div>
-                        <h2 class="h5 mb-1 panel-title"><i class="bi bi-ui-checks-grid"></i> Quiz</h2>
-                        <p class="text-muted mb-0">Pyetjet krijohen vetem nga ky dokument.</p>
-                    </div>
-                    <form method="POST" class="m-0">
-                        {% csrf_token %}
-                        <input type="hidden" name="active_tab" value="quiz">
-                        <input type="hidden" name="action" value="generate_quiz">
-                        <button class="btn btn-warning" type="submit">
-                            <i class="bi bi-magic me-1"></i> Gjenero Quiz
-                        </button>
-                    </form>
-                </div>
-
-                {% if quiz_result %}
-                    <div class="alert alert-success">
-                        <strong>{{ quiz_result.score }}/{{ quiz_result.total }}</strong>
-                        <span class="ms-2">{{ quiz_result.category }}</span>
-                    </div>
-
-                    <div class="border rounded p-3 mb-3">
-                        <h3 class="h6">Sugjerime per perseritje</h3>
-                        <p class="mb-2">{{ quiz_result.advice }}</p>
-                        {% if quiz_result.mistakes %}
-                            <ul class="mb-0">
-                                {% for mistake in quiz_result.mistakes %}
-                                    <li>{{ mistake.question }} <span class="text-muted">(e sakta: {{ mistake.answer }})</span></li>
-                                {% endfor %}
-                            </ul>
-                        {% endif %}
-                    </div>
-                {% endif %}
-
-                {% if questions %}
-                    <form method="POST" id="study-quiz-form">
-                        {% csrf_token %}
-                        <input type="hidden" name="active_tab" value="quiz">
-                        <input type="hidden" name="action" value="submit_quiz">
-
-                        {% for question in questions %}
-                            <section class="border rounded p-3 mb-3">
-                                <h3 class="h6">{{ forloop.counter }}. {{ question.question }}</h3>
-                                <div class="row g-2 mt-2">
-                                    {% for key, option in question.options.items %}
-                                        <div class="col-md-6">
-                                            <input
-                                                class="option-input"
-                                                type="radio"
-                                                id="study_q{{ forloop.parentloop.counter0 }}_{{ key }}"
-                                                name="question_{{ forloop.parentloop.counter0 }}"
-                                                value="{{ key }}"
-                                                {% if question.selected == key %}checked{% endif %}
-                                                {% if quiz_result %}disabled{% endif %}
-                                            >
-                                            <label
-                                                class="option-label border rounded w-100 p-3 {% if quiz_result and key == question.answer %}border-success bg-success-subtle{% elif quiz_result and question.selected == key and not question.is_correct %}border-danger bg-danger-subtle{% endif %}"
-                                                for="study_q{{ forloop.parentloop.counter0 }}_{{ key }}"
-                                            >
-                                                <strong>{{ key }}.</strong> {{ option }}
-                                                {% if quiz_result and key == question.answer %}
-                                                    <span class="badge bg-success ms-2">E sakte</span>
-                                                {% elif quiz_result and question.selected == key and not question.is_correct %}
-                                                    <span class="badge bg-danger ms-2">Gabim</span>
-                                                {% endif %}
-                                            </label>
-                                        </div>
-                                    {% endfor %}
-                                </div>
-                            </section>
-                        {% endfor %}
-
-                        {% if not quiz_result %}
-                            <button class="btn btn-success" type="submit" id="study-quiz-submit">
-                                <i class="bi bi-check2-circle me-1"></i>
-                                Submit Quiz
-                            </button>
-                        {% endif %}
-                    </form>
-                {% else %}
-                    <div class="alert alert-light border mb-0">
-                        Shtyp "Gjenero Quiz" per te krijuar pyetje nga dokumenti.
-                    </div>
-                {% endif %}
-            </div>
-        </section>
-
-        <section class="tab-pane fade {% if active_tab == 'flashcards' %}show active{% endif %}" id="flashcards-pane" role="tabpanel" aria-labelledby="flashcards-tab">
-            <div class="studio-panel">
-                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-                    <div>
-                        <h2 class="h5 mb-1 panel-title"><i class="bi bi-layers"></i> Flashcards</h2>
-                        <p class="text-muted mb-0">Shkruaj pergjigjen tende dhe kontrollo thelbin.</p>
-                    </div>
-                    <form method="POST" class="m-0">
-                        {% csrf_token %}
-                        <input type="hidden" name="active_tab" value="flashcards">
-                        <input type="hidden" name="action" value="generate_flashcards">
-                        <button class="btn btn-info" type="submit">
-                            <i class="bi bi-magic me-1"></i> Gjenero Flashcards
-                        </button>
-                    </form>
+                <div class="doc-compact-row">
+                    <div class="pdf-icon">PDF</div>
+                    <h2 class="doc-title mb-0">{{ document.title }}</h2>
                 </div>
 
                 <div class="d-flex flex-wrap gap-2 mb-3">
-                    <span class="badge bg-success">Jeshile: thelbi eshte kapur mire</span>
-                    <span class="badge bg-warning text-dark">E verdhe: pjeserisht mire</span>
-                    <span class="badge bg-danger">E kuqe: duhet perseritur</span>
+                    <span class="meta-pill">{{ document.uploaded_at }}</span>
+                    {% if document.summary_status == 'processing' %}
+                        <span class="status-badge status-processing">Summary Processing</span>
+                    {% elif document.summary_status == 'completed' %}
+                        <span class="status-badge status-completed">Summary Completed</span>
+                    {% elif document.summary_status == 'failed' %}
+                        <span class="status-badge status-failed">Summary Failed</span>
+                    {% else %}
+                        <span class="status-badge status-pending">Summary Pending</span>
+                    {% endif %}
                 </div>
 
-                {% if flashcard_results %}
-                    <div class="alert alert-success">
-                        <strong>{{ flashcard_results.average_score }}%</strong>
-                        <span class="ms-2">{{ flashcard_results.overall_label }}</span>
-                    </div>
-                {% endif %}
+                <a href="{% url 'document_file' document.id %}" target="_blank" class="btn btn-premium w-100 btn-sm mb-2">
+                    Open PDF
+                </a>
+                <a href="{% url 'exam_simulator' document.id %}" class="btn btn-soft btn-sm w-100 mb-2">
+                    🎯 Simulate Exam
+                </a>
 
-                {% if flashcards %}
-                    <form method="POST" id="study-flashcards-form">
+                {% if active_study_session %}
+                    <div class="grounded-note mb-3">
+                        Active study session started {{ active_study_session.started_at|date:"d/m/Y H:i" }}
+                    </div>
+                    <form method="POST" action="{% url 'complete_study_session' active_study_session.id %}" data-normal-submit="true" class="mb-2">
                         {% csrf_token %}
-                        <input type="hidden" name="active_tab" value="flashcards">
-                        <input type="hidden" name="action" value="submit_flashcards">
-
-                        {% for flashcard in flashcards %}
-                            <section class="border rounded p-3 mb-3 {% if flashcard.evaluation.score >= 70 %}border-success bg-success-subtle{% elif flashcard.evaluation.score >= 40 %}border-warning bg-warning-subtle{% elif flashcard.evaluation %}border-danger bg-danger-subtle{% endif %}">
-                                <h3 class="h6">{{ forloop.counter }}. {{ flashcard.question }}</h3>
-
-                                {% if flashcard.evaluation %}
-                                    <p class="mb-1"><strong>Pergjigjja jote:</strong> {{ flashcard.user_answer|default:"Pa pergjigje" }}</p>
-                                    <p class="mb-1"><strong>Pergjigjja model:</strong> {{ flashcard.answer }}</p>
-                                    <p class="mb-0"><strong>Vleresim:</strong> {{ flashcard.evaluation.label }} - {{ flashcard.evaluation.score }}%</p>
-                                {% else %}
-                                    <textarea class="form-control flashcard-answer" name="answer_{{ forloop.counter0 }}" rows="3" placeholder="Shkruaj pergjigjen tende..."></textarea>
-                                {% endif %}
-                            </section>
-                        {% endfor %}
-
-                        {% if not flashcard_results %}
-                            <button class="btn btn-success" type="submit" id="study-flashcards-submit">
-                                <i class="bi bi-check2-circle me-1"></i>
-                                Kontrollo Pergjigjet
-                            </button>
-                        {% endif %}
+                        <button class="btn btn-premium btn-sm w-100" type="submit">
+                            Complete Session
+                        </button>
                     </form>
+                    <a href="{% url 'study_session_detail' active_study_session.id %}" class="btn btn-soft btn-sm w-100 mb-2">
+                        Session Details
+                    </a>
                 {% else %}
-                    <div class="alert alert-light border mb-0">
-                        Shtyp "Gjenero Flashcards" per te krijuar pyetje per perseritje.
+                    <a href="{% url 'start_study_session' document.id %}" class="btn btn-soft btn-sm w-100 mb-2">
+                        Start Study Session
+                    </a>
+                {% endif %}
+
+                <div class="grounded-note">
+                    AI grounded in this document
+                </div>
+            </div>
+        </aside>
+
+        <section class="study-card summary-card">
+            <div class="card-pad">
+                <div class="section-heading">
+                    <span class="section-icon">S</span>
+                    <div>
+                        <h2 class="section-title">AI Summary</h2>
+                        <p class="section-subtitle">Key ideas extracted from the document</p>
+                    </div>
+                </div>
+
+                {% if document.summary_status == 'processing' %}
+                    <div class="empty-state">
+                        StudentAI is still processing the summary for this document.
+                    </div>
+                {% elif document.summary_status == 'failed' %}
+                    <div class="empty-state">
+                        StudentAI could not generate the summary yet. You can still use AI chat, quiz, and flashcards from this document.
+                        {% if document.processing_error %}
+                            <div class="mt-2 small text-muted">{{ document.processing_error }}</div>
+                        {% endif %}
+                    </div>
+                {% elif document.summary %}
+                    <div class="summary-copy">{{ document.summary }}</div>
+                {% else %}
+                    <div class="empty-state">
+                        No AI summary generated yet.
                     </div>
                 {% endif %}
             </div>
         </section>
 
-        <section class="tab-pane fade {% if active_tab == 'chat' %}show active{% endif %}" id="chat-pane" role="tabpanel" aria-labelledby="chat-tab">
-            <div class="studio-panel chat-panel">
-                <div class="mb-3">
-                    <h2 class="h5 mb-1 panel-title"><i class="bi bi-chat-dots"></i> Chat AI</h2>
-                    <p class="text-muted mb-0">Pergjigjet bazohen vetem ne tekstin e dokumentit.</p>
+        <aside class="study-card chat-card">
+            <div class="card-pad">
+                <div class="section-heading">
+                    <span class="section-icon">AI</span>
+                    <div>
+                        <h2 class="section-title">Chat AI</h2>
+                        <p class="section-subtitle">Ask questions based on this document</p>
+                    </div>
                 </div>
 
-                <div class="chat-messages" id="chat-messages">
-                    <div class="message-row ai">
-                        <div class="message-bubble">
-                            Pershendetje. Bej nje pyetje per dokumentin dhe do te pergjigjem mbi materialin e ngarkuar.
+                <div class="chat-shell">
+                    {% if chat_messages %}
+                        <div class="chat-thread">
+                            {% for message in chat_messages %}
+                                <div class="chat-message user">
+                                    <div class="user-bubble">{{ message.question }}</div>
+                                    <span class="user-avatar">You</span>
+                                </div>
+                                <div class="chat-message">
+                                    <span class="ai-avatar">AI</span>
+                                    <div class="chat-bubble">
+                                        <div class="chat-label">StudentAI Tutor</div>
+                                        {{ message.answer }}
+                                    </div>
+                                </div>
+                            {% endfor %}
                         </div>
-                    </div>
+                    {% elif ai_answer %}
+                        <div class="chat-thread">
+                            <div class="chat-message">
+                                <span class="ai-avatar">AI</span>
+                                <div class="chat-bubble">
+                                    <div class="chat-label">StudentAI Tutor</div>
+                                    {{ ai_answer }}
+                                </div>
+                            </div>
+                        </div>
+                    {% else %}
+                        <div class="chat-thread">
+                            <div class="empty-state">
+                                Ask a question to start studying with AI.
+                            </div>
+                        </div>
+                    {% endif %}
+
+                    <form method="POST">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="ask_ai">
+
+                        <div class="chat-composer">
+                            <textarea
+                                name="question"
+                                class="form-control chat-input"
+                                rows="4"
+                                placeholder="Ask AI about this document..."
+                            ></textarea>
+
+                            <button class="btn btn-premium w-100 mt-2" type="submit">
+                                Ask AI
+                            </button>
+                        </div>
+                    </form>
                 </div>
-
-                <form method="POST" id="study-chat-form" class="mt-3" data-ask-url="{% url 'document_chat_ask' document.id %}">
-                    {% csrf_token %}
-                    <input type="hidden" name="active_tab" value="chat">
-                    <input type="hidden" name="action" value="chat">
-                    <div class="d-flex gap-2 align-items-end">
-                        <textarea id="study-question" name="question" class="form-control" rows="2" placeholder="Shkruaj pyetjen ketu..."></textarea>
-                        <button class="btn btn-success px-4" type="submit" id="study-chat-submit">
-                            <i class="bi bi-send me-1"></i> Send
-                        </button>
-                    </div>
-                </form>
             </div>
-        </section>
+        </aside>
+
+        {% if error_message or questions or quiz_result or flashcard_items or flashcard_results %}
+            <section class="workspace-results">
+                {% if error_message %}
+                    <div class="result-card">
+                        <div class="alert alert-warning rounded-4 mb-0">{{ error_message }}</div>
+                    </div>
+                {% endif %}
+
+                {% if questions or quiz_result %}
+                    <div class="result-card">
+                        <div class="section-heading">
+                            <span class="section-icon">Q</span>
+                            <div>
+                                <h2 class="section-title">Quiz</h2>
+                                <p class="section-subtitle">Generated from this document</p>
+                            </div>
+                        </div>
+
+                        {% if quiz_result %}
+                            <div class="alert alert-primary rounded-4">
+                                <strong>{{ quiz_result.score }}/{{ quiz_result.total }}</strong>
+                                - {{ quiz_result.category }}
+                            </div>
+
+                            {% if quiz_result.advice %}
+                                <div class="alert alert-info rounded-4">
+                                    <strong>Sugjerime per perseritje</strong>
+                                    <div>{{ quiz_result.advice }}</div>
+                                </div>
+                            {% endif %}
+                        {% endif %}
+
+                        <form method="POST">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="submit_quiz">
+                            <input type="hidden" name="active_tab" value="quiz">
+
+                            {% for question in questions %}
+                                <section class="question-card">
+                                    <h3 class="h5 fw-bold">{{ forloop.counter }}. {{ question.question }}</h3>
+
+                                    <div class="row g-2 mt-2">
+                                        {% for key, option in question.options.items %}
+                                            <div class="col-md-6">
+                                                <input
+                                                    class="option-input"
+                                                    type="radio"
+                                                    id="study_q{{ forloop.parentloop.counter0 }}_{{ key }}"
+                                                    name="question_{{ forloop.parentloop.counter0 }}"
+                                                    value="{{ key }}"
+                                                    {% if question.selected == key %}checked{% endif %}
+                                                    {% if quiz_result %}disabled{% endif %}
+                                                >
+
+                                                <label
+                                                    class="option-label w-100 p-3 {% if quiz_result and key == question.answer %}border-success bg-success-subtle{% elif quiz_result and question.selected == key and not question.is_correct %}border-danger bg-danger-subtle{% endif %}"
+                                                    for="study_q{{ forloop.parentloop.counter0 }}_{{ key }}"
+                                                >
+                                                    <strong>{{ key }}.</strong> {{ option }}
+
+                                                    {% if quiz_result and key == question.answer %}
+                                                        <span class="badge bg-success ms-2">E sakte</span>
+                                                    {% elif quiz_result and question.selected == key and not question.is_correct %}
+                                                        <span class="badge bg-danger ms-2">Gabim</span>
+                                                    {% endif %}
+                                                </label>
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+                                </section>
+                            {% endfor %}
+
+                            {% if questions and not quiz_result %}
+                                <button type="submit" class="btn btn-premium">
+                                    Submit Quiz
+                                </button>
+                            {% endif %}
+                        </form>
+                    </div>
+                {% endif %}
+
+                {% if flashcard_results or flashcard_items %}
+                    <div class="result-card">
+                        <div class="section-heading">
+                            <span class="section-icon">F</span>
+                            <div>
+                                <h2 class="section-title">Flashcards</h2>
+                                <p class="section-subtitle">Active recall from this document</p>
+                            </div>
+                        </div>
+
+                        {% if flashcard_results %}
+                            <div class="alert alert-primary rounded-4">
+                                <h3 class="h5 fw-bold mb-2">Vleresimi i pergjithshem</h3>
+                                <p class="mb-1">Rezultati: <strong>{{ flashcard_results.average_score|floatformat:1 }}%</strong></p>
+                                <p class="mb-0">Niveli: <strong>{{ flashcard_results.overall_label }}</strong></p>
+                            </div>
+
+                            {% for card in flashcard_results.cards %}
+                                <section class="flashcard-card">
+                                    <h3 class="h5 fw-bold">{{ forloop.counter }}. {{ card.question }}</h3>
+                                    <p class="mb-2">
+                                        <strong>Pergjigjja jote:</strong>
+                                        {{ card.user_answer|default:"Pa pergjigje" }}
+                                    </p>
+                                    <p class="mb-2">
+                                        <strong>Pergjigjja model:</strong>
+                                        {{ card.answer }}
+                                    </p>
+                                    <div class="alert {% if card.evaluation.score >= 70 %}alert-success{% elif card.evaluation.score >= 40 %}alert-warning{% else %}alert-danger{% endif %} rounded-4 mb-0">
+                                        <strong>{{ card.evaluation.label }} - {{ card.evaluation.score|floatformat:1 }}%</strong>
+                                        <br>
+                                        {{ card.evaluation.feedback }}
+                                    </div>
+                                </section>
+                            {% endfor %}
+                        {% else %}
+                            <form method="POST">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="submit_flashcards">
+                                <input type="hidden" name="active_tab" value="flashcards">
+
+                                {% for card in flashcard_items %}
+                                    <section class="flashcard-card">
+                                        <h3 class="h5 fw-bold">{{ forloop.counter }}. {{ card.question }}</h3>
+                                        <textarea
+                                            name="answer_{{ forloop.counter0 }}"
+                                            class="form-control flashcard-answer"
+                                            rows="3"
+                                            placeholder="Shkruaj pergjigjen tende..."
+                                        ></textarea>
+                                    </section>
+                                {% endfor %}
+
+                                <button type="submit" class="btn btn-premium">
+                                    Kontrollo pergjigjet
+                                </button>
+                            </form>
+                        {% endif %}
+                    </div>
+                {% endif %}
+            </section>
+        {% endif %}
     </div>
-</main>
+</div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-    const quizForm = document.getElementById('study-quiz-form');
-    const quizButton = document.getElementById('study-quiz-submit');
-    if (quizForm && quizButton) {
-        quizForm.addEventListener('submit', function () {
-            quizButton.disabled = true;
-            quizButton.textContent = 'Duke kontrolluar...';
+    function setupDocumentToggle() {
+        const studyPage = document.querySelector('.study-page');
+        const toggleButton = document.querySelector('.toggle-document-btn');
+        const toggleLabel = document.querySelector('.toggle-document-label');
+
+        if (!studyPage || !toggleButton || !toggleLabel) {
+            return;
+        }
+
+        const storageKey = 'studentai-study-document-collapsed-{{ document.id }}';
+        const storedState = localStorage.getItem(storageKey);
+        const isCollapsed = storedState === null ? true : storedState === 'true';
+
+        function applyCollapsedState(collapsed) {
+            studyPage.classList.toggle('document-collapsed', collapsed);
+            toggleButton.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+            toggleLabel.textContent = collapsed ? 'Open Doc' : 'Close Doc';
+        }
+
+        applyCollapsedState(isCollapsed);
+
+        toggleButton.addEventListener('click', function () {
+            const collapsed = !studyPage.classList.contains('document-collapsed');
+            localStorage.setItem(storageKey, collapsed ? 'true' : 'false');
+            applyCollapsedState(collapsed);
         });
     }
 
-    const flashcardsForm = document.getElementById('study-flashcards-form');
-    const flashcardsButton = document.getElementById('study-flashcards-submit');
-    if (flashcardsForm && flashcardsButton) {
-        flashcardsForm.addEventListener('submit', function () {
-            flashcardsButton.disabled = true;
-            flashcardsButton.textContent = 'Duke kontrolluar...';
-        });
+    function scrollStudyChatToBottom() {
+        const chatThread = document.querySelector('.chat-thread');
+
+        if (chatThread) {
+            chatThread.scrollTop = chatThread.scrollHeight;
+        }
     }
 
-    document.querySelectorAll('.flashcard-answer').forEach(function (input) {
-        input.addEventListener('input', function () {
-            if (input.value.length === 1) {
-                input.value = input.value.toUpperCase();
-            }
-        });
+    document.addEventListener('DOMContentLoaded', function () {
+        setupDocumentToggle();
+        scrollStudyChatToBottom();
     });
 
-    const questionInput = document.getElementById('study-question');
-    const chatForm = document.getElementById('study-chat-form');
-    const chatButton = document.getElementById('study-chat-submit');
+    document.addEventListener('keydown', function (event) {
+        const textarea = event.target.closest('textarea[name="question"]');
 
-    function addChatMessage(type, text) {
-        const row = document.createElement('div');
-        row.className = `message-row ${type}`;
-
-        const bubble = document.createElement('div');
-        bubble.className = 'message-bubble';
-        bubble.textContent = text;
-
-        row.appendChild(bubble);
-        document.getElementById('chat-messages').appendChild(row);
-        row.scrollIntoView({ behavior: 'smooth', block: 'end' });
-        return row;
-    }
-
-    if (questionInput && chatForm) {
-        questionInput.addEventListener('keydown', function (event) {
-            if (event.key === 'Enter' && !event.shiftKey) {
-                event.preventDefault();
-                chatForm.requestSubmit();
-            }
-        });
-
-        chatForm.addEventListener('submit', async function (event) {
+        if (textarea && event.key === 'Enter' && !event.shiftKey) {
             event.preventDefault();
+            textarea.form.requestSubmit();
+        }
+    });
 
-            const question = questionInput.value.trim();
-            if (!question) {
-                return;
-            }
+    document.addEventListener('submit', async function (event) {
+        const form = event.target;
 
-            chatButton.disabled = true;
-            chatButton.textContent = '...';
-            questionInput.value = '';
+        if (form.dataset.normalSubmit === 'true') {
+            return;
+        }
 
-            addChatMessage('user', question);
-            const waitingRow = addChatMessage('ai', 'Duke menduar...');
+        if (!form.closest('.study-page') || form.method.toLowerCase() !== 'post') {
+            return;
+        }
 
-            const formData = new FormData();
-            formData.append('question', question);
-            formData.append('csrfmiddlewaretoken', chatForm.querySelector('[name=csrfmiddlewaretoken]').value);
+        event.preventDefault();
 
-            try {
-                const response = await fetch(chatForm.dataset.askUrl, {
-                    method: 'POST',
-                    body: formData,
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest'
-                    }
-                });
-                const data = await response.json();
+        const button = form.querySelector('button[type="submit"]');
+        const originalText = button ? button.textContent : '';
 
-                if (!response.ok) {
-                    throw new Error(data.error || 'Ndodhi nje gabim.');
+        if (button) {
+            button.disabled = true;
+            button.textContent = 'Working...';
+        }
+
+        try {
+            const response = await fetch(window.location.href, {
+                method: 'POST',
+                body: new FormData(form),
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
                 }
+            });
 
-                waitingRow.querySelector('.message-bubble').textContent = data.answer;
-            } catch (error) {
-                waitingRow.querySelector('.message-bubble').textContent = error.message;
-            } finally {
-                chatButton.disabled = false;
-                chatButton.textContent = 'Send';
-                questionInput.focus();
+            const html = await response.text();
+            const parser = new DOMParser();
+            const nextDocument = parser.parseFromString(html, 'text/html');
+            const nextPage = nextDocument.querySelector('.study-page');
+            const currentPage = document.querySelector('.study-page');
+
+            if (nextPage && currentPage) {
+                currentPage.innerHTML = nextPage.innerHTML;
+                setupDocumentToggle();
+                scrollStudyChatToBottom();
+            } else {
+                window.location.reload();
             }
-        });
-    }
+        } catch (error) {
+            if (button) {
+                button.disabled = false;
+                button.textContent = originalText;
+            }
+        }
+    });
 </script>
-
-</body>
-</html>
+{% endblock %}

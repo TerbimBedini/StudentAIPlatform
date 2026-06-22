@@ -1,0 +1,461 @@
+{% extends 'accounts/base_app.html' %}
+
+{% block title %}Profili Im{% endblock %}
+
+{% block content %}
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+
+<style>
+    body.profile-dark {
+        --surface: rgba(15, 23, 42, 0.9);
+        --surface-strong: rgba(15, 23, 42, 0.96);
+        --border: rgba(148, 163, 184, 0.24);
+        --text: #e5e7eb;
+        --muted: #94a3b8;
+        color: var(--text);
+        background:
+            radial-gradient(circle at 14% 8%, rgba(99, 102, 241, 0.22), transparent 28rem),
+            radial-gradient(circle at 84% 12%, rgba(56, 189, 248, 0.12), transparent 28rem),
+            linear-gradient(135deg, #020617 0%, #0f172a 54%, #111827 100%);
+    }
+
+    body.profile-dark .topbar {
+        background: rgba(2, 6, 23, 0.78);
+        border-bottom-color: rgba(148, 163, 184, 0.16);
+    }
+
+    body.profile-dark .search-input,
+    body.profile-dark .notification-btn {
+        color: #e5e7eb;
+        background: rgba(15, 23, 42, 0.84);
+        border-color: rgba(148, 163, 184, 0.24);
+    }
+
+    body.profile-large-text {
+        font-size: 18px;
+    }
+
+    body.profile-high-contrast .settings-card,
+    body.profile-high-contrast .profile-hero,
+    body.profile-high-contrast .setting-row {
+        border-color: rgba(37, 99, 235, 0.72);
+    }
+
+    body.profile-reduced-motion *,
+    body.profile-reduced-motion *::before,
+    body.profile-reduced-motion *::after {
+        animation: none !important;
+        scroll-behavior: auto !important;
+        transition: none !important;
+    }
+
+    .profile-page {
+        display: grid;
+        gap: 22px;
+    }
+
+    .profile-hero {
+        border: 1px solid rgba(255, 255, 255, 0.55);
+        border-radius: 22px;
+        color: #ffffff;
+        background:
+            linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(30, 64, 175, 0.88)),
+            radial-gradient(circle at 86% 18%, rgba(56, 189, 248, 0.28), transparent 24rem);
+        box-shadow: 0 22px 64px rgba(15, 23, 42, 0.24);
+    }
+
+    .profile-avatar-lg {
+        width: 82px;
+        height: 82px;
+        border-radius: 24px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 auto;
+        color: #ffffff;
+        font-size: 1.85rem;
+        font-weight: 950;
+        background: linear-gradient(135deg, #60a5fa, #818cf8);
+        box-shadow: 0 18px 42px rgba(99, 102, 241, 0.34);
+    }
+
+    .settings-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(320px, 0.72fr);
+        gap: 22px;
+        align-items: start;
+    }
+
+    .settings-card {
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        background: var(--surface);
+        box-shadow: 0 18px 48px rgba(15, 23, 42, 0.1);
+        backdrop-filter: blur(18px);
+        -webkit-backdrop-filter: blur(18px);
+    }
+
+    .card-pad {
+        padding: 22px;
+    }
+
+    .section-title {
+        margin: 0;
+        font-size: 1.12rem;
+        font-weight: 850;
+    }
+
+    .section-subtitle {
+        margin: 4px 0 0;
+        color: var(--muted);
+        font-size: 0.9rem;
+    }
+
+    .setting-list {
+        display: grid;
+        gap: 12px;
+    }
+
+    .setting-row {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 14px;
+        min-height: 68px;
+        padding: 14px;
+        border: 1px solid rgba(226, 232, 240, 0.82);
+        border-radius: 16px;
+        background: rgba(248, 250, 252, 0.72);
+    }
+
+    body.profile-dark .setting-row {
+        border-color: rgba(148, 163, 184, 0.22);
+        background: rgba(15, 23, 42, 0.74);
+    }
+
+    .setting-icon {
+        width: 42px;
+        height: 42px;
+        border-radius: 15px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #ffffff;
+        background: linear-gradient(135deg, var(--indigo), var(--blue));
+    }
+
+    .setting-title {
+        margin: 0;
+        font-size: 0.94rem;
+        font-weight: 850;
+    }
+
+    .setting-meta {
+        margin: 2px 0 0;
+        color: var(--muted);
+        font-size: 0.82rem;
+        overflow-wrap: anywhere;
+    }
+
+    .theme-control {
+        display: inline-grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 4px;
+        padding: 4px;
+        border: 1px solid rgba(148, 163, 184, 0.34);
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.72);
+    }
+
+    body.profile-dark .theme-control {
+        background: rgba(2, 6, 23, 0.72);
+    }
+
+    .theme-btn {
+        min-width: 92px;
+        border: 0;
+        border-radius: 10px;
+        padding: 9px 12px;
+        color: #475569;
+        background: transparent;
+        font-weight: 850;
+    }
+
+    .theme-btn.active {
+        color: #ffffff;
+        background: linear-gradient(135deg, var(--indigo), var(--blue));
+        box-shadow: 0 10px 22px rgba(37, 99, 235, 0.22);
+    }
+
+    body.profile-dark .theme-btn:not(.active) {
+        color: #cbd5e1;
+    }
+
+    .form-check-input {
+        width: 3rem;
+        height: 1.5rem;
+        cursor: pointer;
+    }
+
+    .btn-danger-soft {
+        border-radius: 14px;
+        border: 1px solid rgba(239, 68, 68, 0.28);
+        color: #b91c1c;
+        background: rgba(254, 242, 242, 0.94);
+        font-weight: 850;
+    }
+
+    .btn-danger-soft:hover {
+        color: #991b1b;
+        background: #fee2e2;
+    }
+
+    body.profile-dark .btn-danger-soft {
+        color: #fecaca;
+        background: rgba(127, 29, 29, 0.38);
+        border-color: rgba(248, 113, 113, 0.32);
+    }
+
+    .account-summary {
+        display: grid;
+        gap: 12px;
+    }
+
+    .account-pill {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-height: 46px;
+        padding: 10px 12px;
+        border-radius: 14px;
+        color: #1e293b;
+        background: rgba(248, 250, 252, 0.82);
+        border: 1px solid rgba(226, 232, 240, 0.84);
+    }
+
+    body.profile-dark .account-pill {
+        color: #e5e7eb;
+        background: rgba(15, 23, 42, 0.78);
+        border-color: rgba(148, 163, 184, 0.22);
+    }
+
+    @media (max-width: 1199px) {
+        .settings-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (max-width: 575px) {
+        .profile-hero,
+        .settings-card {
+            border-radius: 18px;
+        }
+
+        .card-pad {
+            padding: 18px;
+        }
+
+        .setting-row {
+            grid-template-columns: auto minmax(0, 1fr);
+        }
+
+        .setting-row > .theme-control,
+        .setting-row > .form-check {
+            grid-column: 1 / -1;
+            justify-self: stretch;
+        }
+
+        .theme-control {
+            width: 100%;
+        }
+
+        .theme-btn {
+            min-width: 0;
+        }
+    }
+</style>
+
+<div class="profile-page">
+    <section class="profile-hero">
+        <div class="card-pad">
+            <div class="d-flex align-items-center justify-content-between gap-4 flex-wrap">
+                <div class="d-flex align-items-center gap-3 flex-wrap">
+                    <span class="profile-avatar-lg">{{ request.user.username|slice:":2"|upper }}</span>
+                    <div>
+                        <div class="text-white-50 fw-bold text-uppercase small mb-1">Profili im</div>
+                        <h1 class="display-6 fw-bold mb-1">{{ request.user.username }}</h1>
+                        <p class="text-white-50 mb-0">{{ request.user.email|default:"Email nuk eshte vendosur" }}</p>
+                    </div>
+                </div>
+
+                <form method="post" action="{% url 'logout' %}" class="m-0">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-outline-light rounded-pill px-4 fw-bold">
+                        <i class="bi bi-box-arrow-right me-1"></i> Log out
+                    </button>
+                </form>
+            </div>
+        </div>
+    </section>
+
+    <div class="settings-grid">
+        <section class="settings-card">
+            <div class="card-pad">
+                <div class="mb-4">
+                    <h2 class="section-title">Preferencat</h2>
+                    <p class="section-subtitle">Pamja dhe aksesueshmeria e profilit tend.</p>
+                </div>
+
+                <div class="setting-list">
+                    <div class="setting-row">
+                        <span class="setting-icon"><i class="bi bi-circle-half"></i></span>
+                        <div>
+                            <p class="setting-title">Theme mode</p>
+                            <p class="setting-meta">Zgjidh pamjen light ose dark.</p>
+                        </div>
+                        <div class="theme-control" role="group" aria-label="Theme mode">
+                            <button class="theme-btn active" type="button" data-theme-choice="light">
+                                <i class="bi bi-brightness-high me-1"></i> Light
+                            </button>
+                            <button class="theme-btn" type="button" data-theme-choice="dark">
+                                <i class="bi bi-moon-stars me-1"></i> Dark
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="setting-row">
+                        <span class="setting-icon"><i class="bi bi-type"></i></span>
+                        <div>
+                            <p class="setting-title">Tekst me i madh</p>
+                            <p class="setting-meta">Rrit lexueshmerine ne kete faqe.</p>
+                        </div>
+                        <div class="form-check form-switch m-0">
+                            <input class="form-check-input" type="checkbox" role="switch" id="largeTextToggle" data-accessibility-toggle="largeText">
+                            <label class="visually-hidden" for="largeTextToggle">Tekst me i madh</label>
+                        </div>
+                    </div>
+
+                    <div class="setting-row">
+                        <span class="setting-icon"><i class="bi bi-eye"></i></span>
+                        <div>
+                            <p class="setting-title">Kontrast i larte</p>
+                            <p class="setting-meta">Forcon kufijte dhe fokusin vizual.</p>
+                        </div>
+                        <div class="form-check form-switch m-0">
+                            <input class="form-check-input" type="checkbox" role="switch" id="contrastToggle" data-accessibility-toggle="highContrast">
+                            <label class="visually-hidden" for="contrastToggle">Kontrast i larte</label>
+                        </div>
+                    </div>
+
+                    <div class="setting-row">
+                        <span class="setting-icon"><i class="bi bi-slash-circle"></i></span>
+                        <div>
+                            <p class="setting-title">Me pak animime</p>
+                            <p class="setting-meta">Ul levizjet vizuale ne nderfaqe.</p>
+                        </div>
+                        <div class="form-check form-switch m-0">
+                            <input class="form-check-input" type="checkbox" role="switch" id="motionToggle" data-accessibility-toggle="reducedMotion">
+                            <label class="visually-hidden" for="motionToggle">Me pak animime</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <aside class="settings-card">
+            <div class="card-pad">
+                <div class="mb-4">
+                    <h2 class="section-title">Te dhenat personale</h2>
+                    <p class="section-subtitle">Informacioni baze i llogarise.</p>
+                </div>
+
+                <div class="account-summary mb-4">
+                    <div class="account-pill">
+                        <i class="bi bi-person text-primary"></i>
+                        <div class="min-w-0">
+                            <div class="fw-bold">Username</div>
+                            <div class="setting-meta">{{ request.user.username }}</div>
+                        </div>
+                    </div>
+
+                    <div class="account-pill">
+                        <i class="bi bi-envelope text-primary"></i>
+                        <div class="min-w-0">
+                            <div class="fw-bold">Email</div>
+                            <div class="setting-meta">{{ request.user.email|default:"Nuk ka email te vendosur" }}</div>
+                        </div>
+                    </div>
+
+                    <div class="account-pill">
+                        <i class="bi bi-calendar-check text-primary"></i>
+                        <div class="min-w-0">
+                            <div class="fw-bold">Anetar qe nga</div>
+                            <div class="setting-meta">{{ request.user.date_joined|date:"d/m/Y H:i" }}</div>
+                        </div>
+                    </div>
+
+                    <div class="account-pill">
+                        <i class="bi bi-clock-history text-primary"></i>
+                        <div class="min-w-0">
+                            <div class="fw-bold">Hyrja e fundit</div>
+                            <div class="setting-meta">{{ request.user.last_login|date:"d/m/Y H:i"|default:"Nuk ka te dhena" }}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <form method="post" action="{% url 'logout' %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger-soft w-100 py-3">
+                        <i class="bi bi-box-arrow-right me-1"></i> Log out
+                    </button>
+                </form>
+            </div>
+        </aside>
+    </div>
+</div>
+
+<script>
+    (function () {
+        var themeButtons = document.querySelectorAll('[data-theme-choice]');
+        var accessibilityToggles = document.querySelectorAll('[data-accessibility-toggle]');
+        var savedTheme = localStorage.getItem('studentai.profile.theme') || 'light';
+        var savedAccess = JSON.parse(localStorage.getItem('studentai.profile.accessibility') || '{}');
+
+        function applyTheme(theme) {
+            document.body.classList.toggle('profile-dark', theme === 'dark');
+            themeButtons.forEach(function (button) {
+                button.classList.toggle('active', button.dataset.themeChoice === theme);
+            });
+            localStorage.setItem('studentai.profile.theme', theme);
+        }
+
+        function applyAccessibility(settings) {
+            document.body.classList.toggle('profile-large-text', Boolean(settings.largeText));
+            document.body.classList.toggle('profile-high-contrast', Boolean(settings.highContrast));
+            document.body.classList.toggle('profile-reduced-motion', Boolean(settings.reducedMotion));
+
+            accessibilityToggles.forEach(function (toggle) {
+                toggle.checked = Boolean(settings[toggle.dataset.accessibilityToggle]);
+            });
+
+            localStorage.setItem('studentai.profile.accessibility', JSON.stringify(settings));
+        }
+
+        themeButtons.forEach(function (button) {
+            button.addEventListener('click', function () {
+                applyTheme(button.dataset.themeChoice);
+            });
+        });
+
+        accessibilityToggles.forEach(function (toggle) {
+            toggle.addEventListener('change', function () {
+                savedAccess[toggle.dataset.accessibilityToggle] = toggle.checked;
+                applyAccessibility(savedAccess);
+            });
+        });
+
+        applyTheme(savedTheme);
+        applyAccessibility(savedAccess);
+    })();
+</script>
+{% endblock %}

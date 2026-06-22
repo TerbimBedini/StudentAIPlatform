@@ -3,8 +3,6 @@ from zipfile import BadZipFile, ZipFile
 import re
 import xml.etree.ElementTree as ET
 
-import fitz
-
 
 class TextExtractionError(Exception):
     pass
@@ -14,9 +12,15 @@ def extract_text_from_pdf(pdf_path):
     text_parts = []
 
     try:
+        import fitz
+
         with fitz.open(pdf_path) as pdf:
             for page in pdf:
                 text_parts.append(page.get_text('text', sort=True))
+    except ImportError as exc:
+        raise TextExtractionError(
+            'Paketa PyMuPDF mungon. Instalo dependencies me: pip install -r requirements.txt'
+        ) from exc
     except Exception as exc:
         raise TextExtractionError(
             'Nuk u lexua dot teksti nga PDF-i.'

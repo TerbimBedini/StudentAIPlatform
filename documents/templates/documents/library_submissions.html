@@ -1,0 +1,67 @@
+{% extends 'accounts/base_app.html' %}
+
+{% block title %}My Library Submissions{% endblock %}
+
+{% block content %}
+<style>
+    .panel {
+        border: 1px solid var(--border);
+        border-radius: 22px;
+        background: var(--surface);
+        box-shadow: 0 18px 48px rgba(15, 23, 42, 0.1);
+    }
+
+    .card-pad {
+        padding: 22px;
+    }
+
+    .submission-row {
+        border: 1px solid rgba(226, 232, 240, 0.82);
+        border-radius: 16px;
+        background: rgba(248, 250, 252, 0.72);
+        padding: 14px;
+    }
+
+    .status {
+        border-radius: 999px;
+        padding: 6px 10px;
+        font-size: 0.74rem;
+        font-weight: 850;
+    }
+
+    .pending { color: #92400e; background: #fef3c7; }
+    .approved { color: #047857; background: #d1fae5; }
+    .rejected, .flagged { color: #b91c1c; background: #fee2e2; }
+</style>
+
+<section class="panel">
+    <div class="card-pad">
+        <div class="d-flex justify-content-between align-items-center gap-3 flex-wrap mb-4">
+            <div>
+                <h1 class="h3 fw-bold mb-1">My Library Submissions</h1>
+                <p class="text-muted mb-0">Track review status for your shared materials.</p>
+            </div>
+            <a href="{% url 'library_upload' %}" class="btn btn-primary rounded-3 px-4">Upload another</a>
+        </div>
+
+        <div class="d-grid gap-3">
+            {% for item in submissions %}
+                <article class="submission-row">
+                    <div class="d-flex justify-content-between gap-3 flex-wrap">
+                        <div>
+                            <h2 class="h5 fw-bold mb-1">{{ item.title }}</h2>
+                            <div class="text-muted small">{{ item.get_field_display }} &middot; {{ item.course_name }} &middot; {{ item.uploaded_at|date:"d/m/Y H:i" }}</div>
+                        </div>
+                        <span class="status {{ item.moderation_status }}">{{ item.get_moderation_status_display }}</span>
+                    </div>
+                    {% if item.moderation_notes %}
+                        <p class="mb-0 mt-2 text-muted">{{ item.moderation_notes }}</p>
+                    {% endif %}
+                </article>
+            {% empty %}
+                <div class="submission-row text-muted">You have not submitted anything to the library yet.</div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+{% endblock %}

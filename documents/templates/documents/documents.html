@@ -1,0 +1,366 @@
+{% extends 'accounts/base_app.html' %}
+
+{% block title %}My Documents{% endblock %}
+
+{% block content %}
+<style>
+    .documents-page {
+        display: grid;
+        gap: 22px;
+    }
+
+    .hero-panel,
+    .upload-card,
+    .document-card {
+        border: 1px solid var(--border);
+        border-radius: 24px;
+        background: var(--surface);
+        box-shadow: 0 18px 48px rgba(15, 23, 42, 0.1);
+        backdrop-filter: blur(18px);
+        -webkit-backdrop-filter: blur(18px);
+    }
+
+    .hero-panel {
+        position: relative;
+        overflow: hidden;
+        color: #ffffff;
+        background:
+            linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(49, 46, 129, 0.9)),
+            radial-gradient(circle at 82% 20%, rgba(56, 189, 248, 0.28), transparent 24rem);
+    }
+
+    .hero-panel::after {
+        content: "";
+        position: absolute;
+        inset: auto -12% -70% 42%;
+        height: 280px;
+        background: radial-gradient(circle, rgba(99, 102, 241, 0.42), transparent 68%);
+        pointer-events: none;
+    }
+
+    .hero-content {
+        position: relative;
+        z-index: 1;
+        padding: 28px;
+    }
+
+    .eyebrow {
+        color: #bfdbfe;
+        font-size: 0.78rem;
+        font-weight: 900;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .btn-premium,
+    .btn-soft {
+        border-radius: 14px;
+        font-weight: 850;
+        transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+    }
+
+    .btn-premium {
+        border: 0;
+        color: #ffffff;
+        background: linear-gradient(135deg, var(--indigo), var(--blue));
+        box-shadow: 0 14px 30px rgba(37, 99, 235, 0.24);
+    }
+
+    .btn-premium:hover {
+        color: #ffffff;
+        transform: translateY(-1px);
+        box-shadow: 0 18px 40px rgba(37, 99, 235, 0.32);
+    }
+
+    .btn-soft {
+        border: 1px solid rgba(148, 163, 184, 0.32);
+        color: #1e293b;
+        background: rgba(255, 255, 255, 0.82);
+    }
+
+    .btn-soft:hover {
+        color: #1e293b;
+        background: #ffffff;
+        transform: translateY(-1px);
+    }
+
+    .upload-card {
+        overflow: hidden;
+    }
+
+    .upload-inner {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 18px;
+        padding: 22px;
+    }
+
+    .upload-icon {
+        width: 52px;
+        height: 52px;
+        border-radius: 18px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #ffffff;
+        font-weight: 950;
+        background: linear-gradient(135deg, var(--indigo), var(--blue));
+        box-shadow: 0 14px 30px rgba(37, 99, 235, 0.24);
+        flex: 0 0 auto;
+    }
+
+    .section-title {
+        margin: 0;
+        color: #111827;
+        font-size: 1.05rem;
+        font-weight: 900;
+    }
+
+    .section-subtitle {
+        margin: 4px 0 0;
+        color: var(--muted);
+        font-size: 0.9rem;
+    }
+
+    .document-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 18px;
+    }
+
+    .document-card {
+        min-width: 0;
+        transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    .document-card:hover {
+        transform: translateY(-3px);
+        border-color: rgba(99, 102, 241, 0.36);
+        box-shadow: 0 24px 58px rgba(15, 23, 42, 0.14);
+    }
+
+    .card-pad {
+        height: 100%;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .document-top {
+        display: flex;
+        align-items: flex-start;
+        gap: 14px;
+    }
+
+    .document-icon {
+        width: 48px;
+        height: 58px;
+        border-radius: 16px;
+        flex: 0 0 auto;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--indigo);
+        font-size: 0.78rem;
+        font-weight: 950;
+        background: linear-gradient(135deg, #ffffff, #dbeafe);
+        border: 1px solid rgba(148, 163, 184, 0.28);
+        box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
+    }
+
+    .document-title {
+        margin: 0;
+        color: #111827;
+        font-size: 1rem;
+        font-weight: 900;
+        line-height: 1.25;
+        overflow-wrap: anywhere;
+    }
+
+    .document-meta {
+        color: var(--muted);
+        font-size: 0.82rem;
+    }
+
+    .summary-preview {
+        color: #475569;
+        line-height: 1.58;
+        font-size: 0.9rem;
+        margin: 16px 0 0;
+    }
+
+    .document-actions {
+        margin-top: auto;
+        padding-top: 18px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .action-btn {
+        border-radius: 999px;
+        font-size: 0.82rem;
+        font-weight: 760;
+        padding: 8px 12px;
+    }
+
+    .empty-state {
+        border: 1px dashed rgba(148, 163, 184, 0.68);
+        border-radius: 22px;
+        color: #64748b;
+        background: rgba(248, 250, 252, 0.72);
+        padding: 28px;
+        text-align: center;
+    }
+
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        padding: 6px 10px;
+        font-size: 0.74rem;
+        font-weight: 850;
+    }
+
+    .status-processing {
+        color: #1d4ed8;
+        background: #dbeafe;
+    }
+
+    .status-completed {
+        color: #047857;
+        background: #d1fae5;
+    }
+
+    .status-failed {
+        color: #b91c1c;
+        background: #fee2e2;
+    }
+
+    .status-pending {
+        color: #64748b;
+        background: #f1f5f9;
+    }
+
+    @media (max-width: 1199px) {
+        .document-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+
+    @media (max-width: 767px) {
+        .hero-content,
+        .upload-inner {
+            padding: 22px;
+        }
+
+        .upload-inner {
+            align-items: flex-start;
+            flex-direction: column;
+        }
+
+        .document-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .document-actions .btn {
+            width: 100%;
+        }
+    }
+</style>
+
+<div class="documents-page">
+    <section class="hero-panel">
+        <div class="hero-content">
+            <div class="eyebrow mb-2">Document Library</div>
+            <h1 class="display-6 fw-bold mb-2">My Documents</h1>
+            <p class="text-white-50 mb-0">
+                Open a document, study with AI, generate quizzes, and practice with flashcards.
+            </p>
+        </div>
+    </section>
+
+    <section class="upload-card">
+        <div class="upload-inner">
+            <div class="d-flex align-items-center gap-3">
+                <span class="upload-icon">+</span>
+                <div>
+                    <h2 class="section-title">Upload a new document</h2>
+                    <p class="section-subtitle">Turn PDFs and documents into summaries, chat, quizzes, and flashcards.</p>
+                </div>
+            </div>
+            <a href="{% url 'upload_document' %}" class="btn btn-premium px-4">
+                Upload Document
+            </a>
+        </div>
+    </section>
+
+    {% if documents %}
+        <section class="document-grid">
+            {% for document in documents %}
+                <article class="document-card">
+                    <div class="card-pad">
+                        <div class="document-top">
+                            <span class="document-icon">PDF</span>
+                            <div class="min-w-0">
+                                <h3 class="document-title">{{ document.title }}</h3>
+                                <div class="document-meta">
+                                    {{ document.uploaded_at|date:"d/m/Y H:i" }}
+                                </div>
+                                <div class="d-flex flex-wrap gap-2 mt-2">
+                                    {% if document.summary_status == 'processing' %}
+                                        <span class="status-badge status-processing">Summary Processing</span>
+                                    {% elif document.summary_status == 'completed' %}
+                                        <span class="status-badge status-completed">Summary Completed</span>
+                                    {% elif document.summary_status == 'failed' %}
+                                        <span class="status-badge status-failed">Summary Failed</span>
+                                    {% else %}
+                                        <span class="status-badge status-pending">Summary Pending</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        {% if document.summary_status == 'failed' %}
+                            <p class="summary-preview">
+                                StudentAI could not generate the summary yet. You can still study this document.
+                            </p>
+                        {% else %}
+                            <p class="summary-preview">
+                                {{ document.summary|default:"No AI summary generated yet."|truncatechars:180 }}
+                            </p>
+                        {% endif %}
+
+                        <div class="document-actions">
+                            <a href="{% url 'study_document' document.id %}" class="btn btn-premium action-btn">
+                                Study Mode
+                            </a>
+                            <a href="{{ document.file.url }}" target="_blank" class="btn btn-soft action-btn">
+                                Open PDF
+                            </a>
+                            <a href="{% url 'document_chat' document.id %}" class="btn btn-soft action-btn">
+                                Ask AI
+                            </a>
+                            <a href="{% url 'document_quiz' document.id %}" class="btn btn-soft action-btn">
+                                Generate Quiz
+                            </a>
+                            <a href="{% url 'document_flashcards' document.id %}" class="btn btn-soft action-btn">
+                                Flashcards
+                            </a>
+                        </div>
+                    </div>
+                </article>
+            {% endfor %}
+        </section>
+    {% else %}
+        <section class="empty-state">
+            <h2 class="h4 fw-bold text-dark mb-2">No documents yet</h2>
+            <p class="mb-3">Upload your first document to start studying with StudentAI.</p>
+            <a href="{% url 'upload_document' %}" class="btn btn-premium px-4">
+                Upload Document
+            </a>
+        </section>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,226 @@
+{% extends 'accounts/base_app.html' %}
+
+{% block title %}Exam Simulator{% endblock %}
+
+{% block content %}
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+
+<style>
+    .exam-page {
+        display: grid;
+        gap: 22px;
+    }
+
+    .exam-hero,
+    .exam-card,
+    .question-card {
+        border: 1px solid var(--border);
+        border-radius: 22px;
+        background: var(--surface);
+        box-shadow: 0 18px 48px rgba(15, 23, 42, 0.1);
+        backdrop-filter: blur(18px);
+        -webkit-backdrop-filter: blur(18px);
+    }
+
+    .exam-hero {
+        color: #ffffff;
+        background:
+            linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(30, 27, 75, 0.94)),
+            radial-gradient(circle at 88% 18%, rgba(56, 189, 248, 0.32), transparent 24rem);
+    }
+
+    .card-pad {
+        padding: 22px;
+    }
+
+    .eyebrow {
+        color: #bfdbfe;
+        font-size: 0.78rem;
+        font-weight: 900;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .btn-premium {
+        border: 0;
+        border-radius: 14px;
+        color: #ffffff;
+        background: linear-gradient(135deg, var(--indigo), var(--blue));
+        box-shadow: 0 14px 30px rgba(37, 99, 235, 0.24);
+        font-weight: 850;
+    }
+
+    .btn-premium:hover {
+        color: #ffffff;
+        transform: translateY(-1px);
+    }
+
+    .timer-panel {
+        min-width: 190px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.1);
+        padding: 18px;
+        text-align: center;
+    }
+
+    .timer-value {
+        margin: 0;
+        font-size: 2rem;
+        font-weight: 950;
+        letter-spacing: 0;
+    }
+
+    .exam-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 360px;
+        gap: 22px;
+        align-items: start;
+    }
+
+    .question-list {
+        display: grid;
+        gap: 16px;
+    }
+
+    .question-title {
+        margin: 0 0 14px;
+        color: #111827;
+        font-size: 1rem;
+        font-weight: 900;
+        line-height: 1.45;
+    }
+
+    .option-list {
+        display: grid;
+        gap: 8px;
+    }
+
+    .option-row {
+        border: 1px solid rgba(226, 232, 240, 0.9);
+        border-radius: 14px;
+        background: rgba(248, 250, 252, 0.78);
+        padding: 12px;
+        color: #334155;
+    }
+
+    .answer-key {
+        position: sticky;
+        top: 92px;
+    }
+
+    .answer-row {
+        border: 1px solid rgba(226, 232, 240, 0.9);
+        border-radius: 16px;
+        background: rgba(248, 250, 252, 0.78);
+        padding: 14px;
+    }
+
+    .answer-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 34px;
+        height: 34px;
+        border-radius: 12px;
+        color: #ffffff;
+        background: linear-gradient(135deg, #059669, #2563eb);
+        font-weight: 900;
+    }
+
+    .muted {
+        color: var(--muted);
+    }
+
+    .empty-state {
+        border: 1px dashed rgba(148, 163, 184, 0.7);
+        border-radius: 18px;
+        padding: 24px;
+        color: var(--muted);
+        background: rgba(248, 250, 252, 0.72);
+        text-align: center;
+    }
+
+    @media (max-width: 1199px) {
+        .exam-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .answer-key {
+            position: static;
+        }
+    }
+</style>
+
+<div class="exam-page">
+    <section class="exam-hero">
+        <div class="card-pad">
+            <div class="d-flex justify-content-between align-items-center gap-4 flex-wrap">
+                <div>
+                    <div class="eyebrow mb-2">Exam Mode</div>
+                    <h1 class="display-6 fw-bold mb-2">Exam Simulator</h1>
+                    <p class="text-white-50 mb-1">{{ document.title }}</p>
+                    <p class="text-white-50 mb-0">10 mixed-difficulty questions generated from this document.</p>
+                </div>
+                <div class="d-flex align-items-center gap-3 flex-wrap">
+                    <div class="timer-panel">
+                        <div class="text-white-50 fw-bold small text-uppercase">Timer</div>
+                        <p class="timer-value">30:00</p>
+                        <div class="text-white-50 small">visual placeholder</div>
+                    </div>
+                    <a href="{% url 'study_document' document.id %}" class="btn btn-light rounded-pill px-4 fw-bold">
+                        <i class="bi bi-arrow-left me-1"></i> Back to Study Mode
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    {% if error_message %}
+        <section class="exam-card">
+            <div class="card-pad">
+                <div class="empty-state">{{ error_message }}</div>
+            </div>
+        </section>
+    {% endif %}
+
+    {% if questions %}
+        <section class="exam-grid">
+            <div class="question-list">
+                {% for question in questions %}
+                    <article class="question-card">
+                        <div class="card-pad">
+                            <h2 class="question-title">{{ forloop.counter }}. {{ question.question }}</h2>
+                            <div class="option-list">
+                                {% for key, option in question.options.items %}
+                                    <div class="option-row">
+                                        <strong>{{ key }}.</strong> {{ option }}
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </article>
+                {% endfor %}
+            </div>
+
+            <aside class="exam-card answer-key">
+                <div class="card-pad">
+                    <h2 class="h5 fw-bold mb-2">Answer Key</h2>
+                    <p class="muted mb-3">Correct answers with short explanations.</p>
+                    <div class="d-grid gap-3">
+                        {% for question in questions %}
+                            <div class="answer-row">
+                                <div class="d-flex align-items-center gap-2 mb-2">
+                                    <span class="answer-badge">{{ question.answer }}</span>
+                                    <strong>Question {{ forloop.counter }}</strong>
+                                </div>
+                                <p class="muted mb-0">{{ question.explanation }}</p>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </aside>
+        </section>
+    {% endif %}
+</div>
+{% endblock %}

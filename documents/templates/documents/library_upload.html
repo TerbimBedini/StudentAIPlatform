@@ -1,0 +1,108 @@
+{% extends 'accounts/base_app.html' %}
+
+{% block title %}Upload to Library{% endblock %}
+
+{% block content %}
+<style>
+    .upload-shell {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 360px;
+        gap: 22px;
+        align-items: start;
+    }
+
+    .panel {
+        border: 1px solid var(--border);
+        border-radius: 22px;
+        background: var(--surface);
+        box-shadow: 0 18px 48px rgba(15, 23, 42, 0.1);
+        backdrop-filter: blur(18px);
+    }
+
+    .card-pad {
+        padding: 22px;
+    }
+
+    .btn-premium {
+        border: 0;
+        border-radius: 14px;
+        color: #ffffff;
+        background: linear-gradient(135deg, var(--indigo), var(--blue));
+        font-weight: 850;
+    }
+
+    .security-step {
+        border: 1px solid rgba(226, 232, 240, 0.82);
+        border-radius: 16px;
+        background: rgba(248, 250, 252, 0.72);
+        padding: 14px;
+    }
+
+    @media (max-width: 991px) {
+        .upload-shell {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+<div class="upload-shell">
+    <section class="panel">
+        <div class="card-pad">
+            <h1 class="h3 fw-bold mb-2">Upload to Community Library</h1>
+            <p class="text-muted mb-4">
+                Your document will be reviewed before it becomes public.
+            </p>
+
+            <form method="post" enctype="multipart/form-data" class="row g-3">
+                {% csrf_token %}
+
+                {% for field in form %}
+                    <div class="{% if field.name == 'description' or field.name == 'safety_confirmation' %}col-12{% else %}col-md-6{% endif %}">
+                        <label class="form-label fw-bold" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                        {{ field }}
+                        {% if field.help_text %}
+                            <div class="form-text">{{ field.help_text }}</div>
+                        {% endif %}
+                        {% for error in field.errors %}
+                            <div class="text-danger small mt-1">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                {% endfor %}
+
+                {% if form.non_field_errors %}
+                    <div class="col-12 text-danger">{{ form.non_field_errors }}</div>
+                {% endif %}
+
+                <div class="col-12 d-flex gap-2 flex-wrap">
+                    <button class="btn btn-premium px-4" type="submit">Submit for review</button>
+                    <a href="{% url 'library_home' %}" class="btn btn-outline-secondary rounded-3 px-4">Back</a>
+                </div>
+            </form>
+        </div>
+    </section>
+
+    <aside class="panel">
+        <div class="card-pad">
+            <h2 class="h5 fw-bold mb-3">Security review</h2>
+            <div class="d-grid gap-3">
+                <div class="security-step">
+                    <strong>1. File checks</strong>
+                    <div class="text-muted small">Only PDF/DOCX under 20MB are accepted.</div>
+                </div>
+                <div class="security-step">
+                    <strong>2. Suspicious formats blocked</strong>
+                    <div class="text-muted small">Executable, script, archive, and installer formats are rejected.</div>
+                </div>
+                <div class="security-step">
+                    <strong>3. Human moderation</strong>
+                    <div class="text-muted small">Uploads stay hidden until staff approve them.</div>
+                </div>
+                <div class="security-step">
+                    <strong>4. Community safety</strong>
+                    <div class="text-muted small">Rejected or flagged files never appear in the public library.</div>
+                </div>
+            </div>
+        </div>
+    </aside>
+</div>
+{% endblock %}

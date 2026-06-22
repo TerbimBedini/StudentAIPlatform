@@ -1,0 +1,59 @@
+{% extends 'accounts/base_app.html' %}
+
+{% block title %}Library Moderation{% endblock %}
+
+{% block content %}
+<style>
+    .panel {
+        border: 1px solid var(--border);
+        border-radius: 22px;
+        background: var(--surface);
+        box-shadow: 0 18px 48px rgba(15, 23, 42, 0.1);
+    }
+
+    .card-pad {
+        padding: 22px;
+    }
+
+    .review-row {
+        border: 1px solid rgba(226, 232, 240, 0.82);
+        border-radius: 16px;
+        background: rgba(248, 250, 252, 0.72);
+        padding: 14px;
+    }
+</style>
+
+<section class="panel">
+    <div class="card-pad">
+        <h1 class="h3 fw-bold mb-1">Library Moderation</h1>
+        <p class="text-muted mb-4">Approve, reject, or flag student uploads before they become public.</p>
+
+        <div class="d-grid gap-3">
+            {% for item in submissions %}
+                <article class="review-row">
+                    <div class="d-flex justify-content-between gap-3 flex-wrap">
+                        <div>
+                            <h2 class="h5 fw-bold mb-1">{{ item.title }}</h2>
+                            <div class="text-muted small">
+                                {{ item.get_field_display }} &middot; {{ item.get_document_type_display }} &middot; {{ item.course_name }} &middot; by {{ item.uploaded_by.username }}
+                            </div>
+                            <div class="text-muted small mt-1">{{ item.safety_scan_notes }}</div>
+                        </div>
+                        <a href="{{ item.file.url }}" target="_blank" class="btn btn-outline-primary rounded-3">Open file</a>
+                    </div>
+
+                    <form method="post" action="{% url 'moderate_library_document' item.id 'approve' %}" class="d-flex gap-2 flex-wrap mt-3">
+                        {% csrf_token %}
+                        <input class="form-control" name="moderation_notes" placeholder="Optional moderation note">
+                        <button class="btn btn-success rounded-3" type="submit">Approve</button>
+                        <button class="btn btn-danger rounded-3" type="submit" formaction="{% url 'moderate_library_document' item.id 'reject' %}">Reject</button>
+                        <button class="btn btn-warning rounded-3" type="submit" formaction="{% url 'moderate_library_document' item.id 'flag' %}">Flag</button>
+                    </form>
+                </article>
+            {% empty %}
+                <div class="review-row text-muted">No submissions waiting for moderation.</div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+{% endblock %}
