@@ -3,7 +3,7 @@ import re
 
 from django.conf import settings
 
-from .utils import extract_text_from_document
+from .utils import get_document_text
 
 
 model = None
@@ -204,27 +204,59 @@ def _combine_contexts(*parts, max_chars=12000):
     return '\n\n---\n\n'.join(combined_parts)[:max_chars]
 
 
-def create_document_index(document):
+def _fallback_chunks(document, chunk_count=5):
+    chunks = split_text(get_document_text(document))
+    if not chunks:
+        return []
+
+    random.shuffle(chunks)
+    return chunks[:chunk_count]
+
+
+def get_document_collection(document):
+    rag_client = get_rag_client()
+
+    if rag_client is None:
+        return None
+
+    return rag_client.get_or_create_collection(
+        name=f"document_{document.id}"
+    )
+
+
+def create_document_index(document, force=False):
     rag_client = get_rag_client()
     embedding_model = get_embedding_model()
+    collection_name = f"document_{document.id}"
 
     if rag_client is None or embedding_model is None:
         return 0
 
-    text = extract_text_from_document(document.file.path)
+    if not force:
+        try:
+            collection = get_document_collection(document)
+            existing_count = collection.count() if collection else 0
+            if existing_count > 0:
+                return existing_count
+        except Exception:
+            return 0
 
-    chunks = split_text(text)
-
-    collection_name = f"document_{document.id}"
+    if force:
+        try:
+            rag_client.delete_collection(name=collection_name)
+        except Exception:
+            pass
 
     try:
-        rag_client.delete_collection(name=collection_name)
+        collection = get_document_collection(document)
     except Exception:
-        pass
+        return 0
 
-    collection = rag_client.get_or_create_collection(
-        name=collection_name
-    )
+    if collection is None:
+        return 0
+
+    text = get_document_text(document)
+    chunks = split_text(text)
 
     for i, chunk in enumerate(chunks):
         embedding = embedding_model.encode(chunk).tolist()
@@ -244,8 +276,25 @@ def create_document_index(document):
     return len(chunks)
 
 
+def document_index_exists(document):
+    try:
+        collection = get_document_collection(document)
+        if collection is None:
+            return False
+        return collection.count() > 0
+    except Exception:
+        return False
+
+
+def ensure_document_index(document):
+    if document_index_exists(document):
+        return True
+
+    return create_document_index(document) > 0
+
+
 def search_document_chunks(document, question, n_results=4):
-    full_text = extract_text_from_document(document.file.path)
+    full_text = get_document_text(document)
     point_number = _referenced_point_number(question)
     numbered_context = _extract_numbered_point_context(
         full_text,
@@ -258,81 +307,45 @@ def search_document_chunks(document, question, n_results=4):
 
     rag_client = get_rag_client()
     embedding_model = get_embedding_model()
-
-    if rag_client is None or embedding_model is None:
-        return _combine_contexts(
-            numbered_context,
-            lexical_contexts,
-            full_text[:5000]
-        )
-
-    collection_name = f"document_{document.id}"
-
-    try:
-        collection = rag_client.get_collection(name=collection_name)
-    except Exception:
-        created_chunks = create_document_index(document)
-        if not created_chunks:
-            return _combine_contexts(
-                numbered_context,
-                lexical_contexts,
-                full_text[:5000]
-            )
-
-        try:
-            collection = rag_client.get_collection(name=collection_name)
-        except Exception:
-            return _combine_contexts(
-                numbered_context,
-                lexical_contexts,
-                full_text[:5000]
-            )
-
-    collection_count = collection.count()
-
-    if collection_count == 0:
-        created_chunks = create_document_index(document)
-        if not created_chunks:
-            return _combine_contexts(
-                numbered_context,
-                lexical_contexts,
-                full_text[:5000]
-            )
-
-        try:
-            collection = rag_client.get_collection(name=collection_name)
-            collection_count = collection.count()
-        except Exception:
-            return _combine_contexts(
-                numbered_context,
-                lexical_contexts,
-                full_text[:5000]
-            )
-
-    if collection_count == 0:
-        return _combine_contexts(
-            numbered_context,
-            lexical_contexts,
-            full_text[:5000]
-        )
-
-    question_embedding = embedding_model.encode(question).tolist()
-
-    results = collection.query(
-        query_embeddings=[question_embedding],
-        n_results=min(n_results, collection_count),
+    fallback_context = _combine_contexts(
+        numbered_context,
+        lexical_contexts,
+        _fallback_chunks(document, chunk_count=n_results),
+        full_text[:5000]
     )
 
-    chunks = results["documents"][0]
+    if rag_client is None or embedding_model is None:
+        return fallback_context
+
+    try:
+        if not ensure_document_index(document):
+            return fallback_context
+        collection = get_document_collection(document)
+        if collection is None:
+            return fallback_context
+        collection_count = collection.count()
+    except Exception:
+        return fallback_context
+
+    if collection_count == 0:
+        return fallback_context
+
+    try:
+        question_embedding = embedding_model.encode(question).tolist()
+
+        results = collection.query(
+            query_embeddings=[question_embedding],
+            n_results=min(n_results, collection_count),
+        )
+
+        chunks = results["documents"][0]
+    except Exception:
+        return fallback_context
 
     relevant_text = "\n\n".join(chunks)
 
     if not relevant_text.strip():
-        return _combine_contexts(
-            numbered_context,
-            lexical_contexts,
-            full_text[:5000]
-        )
+        return fallback_context
 
     return _combine_contexts(
         numbered_context,
@@ -355,12 +368,11 @@ def search_multiple_documents(documents, question, n_results=8):
         if len(gathered_chunks) >= n_results:
             break
 
-        collection_name = f"document_{document.id}"
-
         try:
-            collection = rag_client.get_collection(
-                name=collection_name
-            )
+            ensure_document_index(document)
+            collection = get_document_collection(document)
+            if collection is None:
+                continue
         except Exception:
             continue
 
@@ -382,26 +394,21 @@ def get_random_document_chunks(document, chunk_count=5):
     embedding_model = get_embedding_model()
 
     if rag_client is None or embedding_model is None:
-        return []
-
-    collection_name = f"document_{document.id}"
+        return _fallback_chunks(document, chunk_count=chunk_count)
 
     try:
-        collection = rag_client.get_collection(name=collection_name)
+        if not ensure_document_index(document):
+            return _fallback_chunks(document, chunk_count=chunk_count)
+        collection = get_document_collection(document)
+        if collection is None:
+            return _fallback_chunks(document, chunk_count=chunk_count)
     except Exception:
-        created_chunks = create_document_index(document)
-        if not created_chunks:
-            return []
-
-        try:
-            collection = rag_client.get_collection(name=collection_name)
-        except Exception:
-            return []
+        return _fallback_chunks(document, chunk_count=chunk_count)
 
     try:
         results = collection.get(include=['documents'])
     except Exception:
-        return []
+        return _fallback_chunks(document, chunk_count=chunk_count)
 
     chunks = [
         chunk
@@ -410,7 +417,7 @@ def get_random_document_chunks(document, chunk_count=5):
     ]
 
     if not chunks:
-        return []
+        return _fallback_chunks(document, chunk_count=chunk_count)
 
     random.shuffle(chunks)
     return chunks[:chunk_count]
