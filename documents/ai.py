@@ -339,18 +339,32 @@ Context:
         return generate_fast_document_quiz(selected_text, max_questions=3)
 
 
-def generate_mixed_exam(document_text):
+def generate_mixed_exam(
+    document_text,
+    mode='adaptive',
+    difficulty='medium',
+    focus_topics=None,
+    strategy_instruction=''
+):
     selected_text = select_quiz_source_text(
         document_text,
         target_chars=1200,
         window_chars=600
     )
+    focus_text = ', '.join(focus_topics or []) or 'main document concepts'
+    strategy_instruction = strategy_instruction or (
+        'Create a concise document-grounded mock exam.'
+    )
     prompt = f'''
-Krijo exam simulator me 3 items vetem nga konteksti.
+Krijo 5 pyetje provimi vetem nga konteksti.
 Kthe vetem JSON valid pa markdown.
 Schema:
-{{"quiz":[{{"question":"...","options":{{"A":"...","B":"...","C":"...","D":"..."}},"answer":"A","explanation":"shkurt"}}],"flashcards":[{{"question":"...","answer":"..."}}]}}
-Krijo 2 quiz dhe 1 flashcard.
+{{"questions":[{{"type":"multiple_choice","question":"...","options":{{"A":"...","B":"...","C":"...","D":"..."}},"answer":"A","explanation":"shkurt"}},{{"type":"short_answer","question":"...","answer":"...","explanation":"shkurt"}}]}}
+Perdor keto tipe: multiple_choice, short_answer, definition, concept_explanation, true_false.
+Mode: {mode}
+Difficulty: {difficulty}
+Focus: {focus_text}
+Strategy: {strategy_instruction}
 Context:
 {selected_text}
 '''
@@ -359,16 +373,16 @@ Context:
             'Exam Simulator',
             prompt,
             temperature=0.6,
-            num_predict=280,
-            timeout=40,
+            num_predict=520,
+            timeout=30,
             top_p=0.86
         )
     except AIError:
         return '\n\n'.join([
             'QUIZ',
-            generate_fast_document_quiz(selected_text, max_questions=2),
+            generate_fast_document_quiz(selected_text, max_questions=3),
             'FLASHCARDS',
-            generate_fast_flashcards(selected_text, max_cards=1),
+            generate_fast_flashcards(selected_text, max_cards=2),
         ])
 
 

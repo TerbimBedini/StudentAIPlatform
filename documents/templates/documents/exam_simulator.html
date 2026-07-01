@@ -171,9 +171,17 @@
                     <a href="{% url 'study_document' document.id %}" class="btn btn-light rounded-pill px-4 fw-bold">
                         <i class="bi bi-arrow-left me-1"></i> Back to Study Mode
                     </a>
-                    <form method="post" class="m-0 js-new-exam-form">
+                    <form method="post" class="m-0 d-flex flex-wrap align-items-center gap-2 js-new-exam-form">
                         {% csrf_token %}
                         <input type="hidden" name="action" value="new_exam">
+                        <select class="form-select form-select-sm" name="mode" style="width: 190px;">
+                            <option value="adaptive" {% if not exam_strategy or exam_strategy.requested_mode == 'adaptive' %}selected{% endif %}>Adaptive</option>
+                            <option value="easy" {% if exam_strategy.requested_mode == 'easy' %}selected{% endif %}>Easy</option>
+                            <option value="medium" {% if exam_strategy.requested_mode == 'medium' %}selected{% endif %}>Medium</option>
+                            <option value="hard" {% if exam_strategy.requested_mode == 'hard' %}selected{% endif %}>Hard</option>
+                            <option value="mixed" {% if exam_strategy.requested_mode == 'mixed' %}selected{% endif %}>Mixed</option>
+                            <option value="weak_topics" {% if exam_strategy.requested_mode == 'weak_topics' %}selected{% endif %}>Weak Topics Focus</option>
+                        </select>
                         <button type="submit" class="btn btn-premium rounded-pill px-4 fw-bold js-new-exam-button">
                             <i class="bi bi-shuffle me-1"></i> New Exam
                         </button>
@@ -187,6 +195,19 @@
         <section class="exam-card">
             <div class="card-pad">
                 <div class="empty-state">{{ error_message }}</div>
+            </div>
+        </section>
+    {% endif %}
+
+    {% if exam_strategy %}
+        <section class="exam-card">
+            <div class="card-pad">
+                <div class="d-flex flex-wrap gap-3 align-items-center">
+                    <span><strong>Exam mode:</strong> {{ exam_strategy.mode|title }}</span>
+                    <span><strong>Difficulty:</strong> {{ exam_strategy.difficulty|title }}</span>
+                    <span><strong>Focus topics:</strong> {{ exam_strategy.focus_topics|join:", " }}</span>
+                    <span><strong>Estimated time:</strong> {{ exam_strategy.estimated_minutes }} minutes</span>
+                </div>
             </div>
         </section>
     {% endif %}
@@ -224,9 +245,9 @@
                                 <div class="d-flex justify-content-between gap-3 align-items-start mb-2">
                                     <h2 class="question-title mb-0">{{ forloop.counter }}. {{ question.question }}</h2>
                                     {% if question.type == 'flashcard' %}
-                                        <span class="badge bg-primary">Flashcard</span>
+                                        <span class="badge bg-primary">{{ question.type_label|default:"Short Answer" }}</span>
                                     {% else %}
-                                        <span class="badge bg-info text-dark">Quiz</span>
+                                        <span class="badge bg-info text-dark">Multiple Choice</span>
                                     {% endif %}
                                 </div>
 

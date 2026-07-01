@@ -28,6 +28,7 @@ from .ai import (
     generate_exam,
     generate_fast_document_quiz,
     generate_flashcards,
+    generate_mixed_exam,
     select_quiz_source_text,
 )
 from .learning_diagnosis import (
@@ -40,6 +41,7 @@ from .learning_diagnosis import (
 from .progress import analyze_student_strengths, get_next_study_action
 from .recovery import get_recovery_plan, get_recovery_score
 from .smart_flashcards import get_flashcard_strategy, normalize_flashcard_mode
+from .smart_exam import get_exam_strategy, normalize_exam_mode
 from .views import evaluate_flashcard_answer, parse_exam_response, parse_quiz_response
 
 
@@ -964,9 +966,12 @@ class DocumentTests(TestCase):
         self.assertContains(response, 'Exam Simulator')
         self.assertContains(response, 'Exam Source')
         self.assertContains(response, 'Cfare permendet ne material?')
-        self.assertContains(response, 'Flashcard')
+        self.assertContains(response, 'Short Answer')
         self.assertContains(response, 'Submit Exam')
         self.assertContains(response, 'New Exam')
+        self.assertContains(response, 'Exam mode')
+        session_questions = self.client.session[f'exam_simulator_{document.id}']
+        self.assertEqual(len(session_questions), 5)
 
     @patch('documents.views.generate_mixed_exam')
     def test_exam_simulator_submit_shows_wrong_question_review(
@@ -1006,16 +1011,26 @@ class DocumentTests(TestCase):
         self.assertEqual(generate_response.status_code, 200)
         self.assertContains(generate_response, 'Cfare permendet ne material?')
 
+        exam_questions = self.client.session[f'exam_simulator_{document.id}']
+        answers = {}
+        for index, question in enumerate(exam_questions):
+            if question.get('type') == 'flashcard':
+                answers[f'flashcard_{index}'] = ''
+            else:
+                answers[f'question_{index}'] = next(
+                    key
+                    for key in ['A', 'B', 'C', 'D']
+                    if key != question.get('answer')
+                )
+
         response = self.client.post(
             reverse('exam_simulator', args=[document.id]),
-            {
-                'question_0': 'B',
-                'flashcard_1': '',
-            }
+            answers
         )
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Exam Result')
+        self.assertContains(response, '0/5 correct')
         self.assertContains(response, 'Wrong Questions Review')
         self.assertContains(response, 'Right answer')
         self.assertContains(response, 'Where to find it')
@@ -1061,6 +1076,54 @@ class DocumentTests(TestCase):
         self.assertContains(response, 'New Exam')
         self.assertContains(response, 'Cfare permendet ne material?')
         self.assertContains(response, 'Submit Exam')
+        self.assertContains(response, 'Estimated time')
+
+    def test_adaptive_exam_strategy_uses_weak_performance(self):
+        user = User.objects.create_user(
+            username='adaptive_exam_student',
+            password='password123'
+        )
+        path = self.create_pdf(text='Algjebra shpjegon ekuacionet.')
+        document = Document.objects.create(
+            title='Algebra',
+            file=path.name,
+            uploaded_by=user
+        )
+        QuizAttempt.objects.create(
+            document=document,
+            user=user,
+            score=1,
+            total=5
+        )
+        FlashcardAttempt.objects.create(
+            document=document,
+            user=user,
+            average_score=40,
+            category='Duhet perseritur'
+        )
+
+        strategy = get_exam_strategy(user, document, 'adaptive')
+
+        self.assertEqual(strategy['requested_mode'], 'adaptive')
+        self.assertEqual(strategy['difficulty'], 'easy')
+        self.assertIn('Algebra', strategy['focus_topics'])
+        self.assertEqual(strategy['flashcard_attempts'], 1)
+        self.assertEqual(normalize_exam_mode('weak topics focus'), 'weak_topics')
+
+    @patch('documents.ai.ollama_generate')
+    def test_generate_mixed_exam_fallback_returns_five_questions(self, mock_ollama_generate):
+        mock_ollama_generate.side_effect = AIError('Ollama unavailable')
+        text = (
+            'StudentAI perdor dokumentin per te krijuar pyetje provimi me kuptim. '
+            'Kuptimi i koncepteve ndihmon studentin te pergatitet per testim.'
+        )
+
+        exam = generate_mixed_exam(text)
+
+        self.assertIn('QUIZ', exam)
+        self.assertIn('FLASHCARDS', exam)
+        self.assertEqual(exam.count('Pergjigjja e sakte:'), 3)
+        self.assertEqual(exam.count('Pyetje:'), 2)
 
     def test_exam_simulator_blocks_other_users_document(self):
         owner = User.objects.create_user(

@@ -48,6 +48,7 @@ from .smart_flashcards import (
     get_flashcard_strategy,
     normalize_flashcard_mode,
 )
+from .smart_exam import get_exam_strategy, normalize_exam_mode
 from .tutor import generate_tutor_turn
 from .utils import TextExtractionError, get_document_text
 
@@ -283,15 +284,22 @@ def generate_flashcards_for_document(document, user, mode='adaptive'):
     return flashcards, raw_flashcards, strategy
 
 
-def generate_exam_for_document(document):
+def generate_exam_for_document(document, user, mode='adaptive'):
     total_started_at = time.perf_counter()
+    strategy = get_exam_strategy(user, document, mode)
     context, _chunks, document_text = get_generation_context(
         document,
-        chunk_count=3,
+        chunk_count=4,
         fallback_chars=2200
     )
     started_at = time.perf_counter()
-    raw_exam = generate_mixed_exam(context)
+    raw_exam = generate_mixed_exam(
+        context,
+        mode=strategy['mode'],
+        difficulty=strategy['difficulty'],
+        focus_topics=strategy['focus_topics'],
+        strategy_instruction=strategy['instruction']
+    )
     logger.info(
         'Direct exam generation for document %s: %.1f seconds',
         document.id,
@@ -304,6 +312,28 @@ def generate_exam_for_document(document):
         flashcard_items,
         document_text
     )
+    if len(questions) < 5:
+        fallback_raw = '\n\n'.join([
+            'QUIZ',
+            generate_fast_document_quiz(context, max_questions=3),
+            'FLASHCARDS',
+            generate_fast_flashcards(context, max_cards=2),
+        ])
+        fallback_quiz, fallback_flashcards = parse_mixed_exam_response(fallback_raw)
+        fallback_questions = build_mixed_exam_items(
+            fallback_quiz,
+            fallback_flashcards,
+            document_text
+        )
+        for fallback_question in fallback_questions:
+            questions.append(fallback_question)
+            if len(questions) >= 5:
+                break
+        while questions and len(questions) < 5:
+            questions.append(random.choice(questions).copy())
+
+    random.shuffle(questions)
+    questions = questions[:5]
     logger.info(
         'Exam JSON parsing/build for document %s: %.1f seconds',
         document.id,
@@ -316,7 +346,7 @@ def generate_exam_for_document(document):
         document.id,
         time.perf_counter() - total_started_at
     )
-    return questions, raw_exam
+    return questions, raw_exam, strategy
 
 
 def process_uploaded_document_ai(document_id, user_id):
@@ -964,7 +994,7 @@ def build_mixed_exam_items(quiz_questions, flashcards, document_text):
     random.shuffle(flashcard_items)
 
     quiz_target = min(3, len(quiz_items))
-    flashcard_target = min(2, len(flashcard_items))
+    flashcard_target = min(5 - quiz_target, len(flashcard_items))
 
     mixed_items = []
 
@@ -989,11 +1019,16 @@ def build_mixed_exam_items(quiz_questions, flashcards, document_text):
         answer = flashcard.get('answer', '')
         mixed_items.append({
             'type': 'flashcard',
+            'question_type': flashcard.get('question_type', 'short_answer'),
+            'type_label': flashcard.get('type_label', 'Short Answer'),
             'question': flashcard.get('question', ''),
             'answer': answer,
             'correct_answer': answer,
-            'explanation': 'Compare your answer with the model answer and review the document reference.',
-            'source_reference': find_answer_reference(
+            'explanation': flashcard.get(
+                'explanation',
+                'Compare your answer with the model answer and review the document reference.'
+            ),
+            'source_reference': flashcard.get('source_reference') or find_answer_reference(
                 document_text,
                 flashcard.get('question', ''),
                 answer
@@ -1002,6 +1037,57 @@ def build_mixed_exam_items(quiz_questions, flashcards, document_text):
 
     random.shuffle(mixed_items)
     return mixed_items[:5]
+
+
+def clean_exam_open_questions(items, document_text=''):
+    cleaned_items = []
+
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+
+        question_type = str(item.get('type', 'short_answer')).strip().lower()
+        question_type = question_type.replace('-', '_').replace(' ', '_')
+        if question_type in {'multiple_choice', 'mcq', 'quiz'}:
+            continue
+
+        question = str(item.get('question', '')).strip()
+        answer = str(
+            item.get('answer')
+            or item.get('correct_answer')
+            or ''
+        ).strip()
+
+        if not question or not answer:
+            continue
+
+        if question_type == 'true_false':
+            label = 'True/False'
+        elif question_type == 'definition':
+            label = 'Definition'
+        elif question_type == 'concept_explanation':
+            label = 'Concept Explanation'
+        else:
+            label = 'Short Answer'
+
+        explanation = str(item.get('explanation', '')).strip()
+        cleaned_items.append({
+            'type': 'flashcard',
+            'question_type': question_type,
+            'type_label': label,
+            'question': question,
+            'answer': answer,
+            'correct_answer': answer,
+            'explanation': explanation or 'Compare your answer with the model answer.',
+            'source_reference': find_answer_reference(
+                document_text,
+                question,
+                answer,
+                explanation
+            ) if document_text else '',
+        })
+
+    return cleaned_items[:5]
 
 
 def split_mixed_exam_content(raw_content):
@@ -1030,6 +1116,13 @@ def parse_mixed_exam_response(raw_content):
     json_payload = parse_ai_json_payload(raw_content)
 
     if isinstance(json_payload, dict):
+        json_questions = get_json_items(json_payload, 'questions', 'items', 'exam')
+        if json_questions:
+            quiz_items = clean_exam_questions(json_questions)
+            open_items = clean_exam_open_questions(json_questions)
+            if quiz_items or open_items:
+                return quiz_items, open_items
+
         quiz_items = clean_exam_questions(
             get_json_items(json_payload, 'quiz', 'questions', 'items')
         )
@@ -1917,26 +2010,35 @@ def exam_simulator(request, document_id):
     )
     session_key = f'exam_simulator_{document.id}'
     raw_exam_session_key = f'exam_simulator_raw_{document.id}'
+    exam_strategy_session_key = f'exam_simulator_strategy_{document.id}'
     exam_result = None
     submitted_items = None
     mistakes = []
     questions = request.session.get(session_key, [])
     raw_exam = request.session.get(raw_exam_session_key, '')
+    exam_strategy = request.session.get(exam_strategy_session_key)
     error_message = None
 
     if request.method == 'POST' and request.POST.get('action') == 'new_exam':
         request_started_at = time.perf_counter()
         request.session.pop(session_key, None)
         request.session.pop(raw_exam_session_key, None)
+        request.session.pop(exam_strategy_session_key, None)
 
         try:
             if not consume_ai_request_quota(request.user):
                 raise AIError(ai_rate_limit_message())
 
-            questions, raw_exam = generate_exam_for_document(document)
+            requested_mode = normalize_exam_mode(request.POST.get('mode'))
+            questions, raw_exam, exam_strategy = generate_exam_for_document(
+                document,
+                request.user,
+                requested_mode
+            )
             started_at = time.perf_counter()
             request.session[session_key] = questions
             request.session[raw_exam_session_key] = raw_exam
+            request.session[exam_strategy_session_key] = exam_strategy
             record_activity(request.user, 'quiz', document.title)
             logger.info(
                 'Exam session/activity save for document %s: %.1f seconds',
@@ -2015,6 +2117,7 @@ def exam_simulator(request, document_id):
             'document': document,
             'questions': submitted_items or questions,
             'raw_exam': raw_exam,
+            'exam_strategy': exam_strategy,
             'error_message': error_message,
             'exam_result': exam_result,
             'mistakes': mistakes,
