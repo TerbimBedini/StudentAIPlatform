@@ -195,13 +195,17 @@
             <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
                 <div>
                     <h2 class="h4 fw-bold mb-1">Document Flashcards</h2>
-                    <p class="text-muted mb-0">Shkruaj pergjigjen me fjalet e tua. Vleresimi bazohet te thelbi dhe fjalet kyce.</p>
+                    <p class="text-muted mb-0">Using cached text and document chunks to generate a concise flashcard pack.</p>
                 </div>
-                <form method="POST" class="m-0">
+                <form method="POST" class="m-0" id="new-flashcards-form">
                     {% csrf_token %}
                     <input type="hidden" name="action" value="new">
-                    <button class="btn btn-premium" type="submit">
-                        Gjenero Flashcards te reja
+                    <button class="btn btn-premium" type="submit" id="new-flashcards-button">
+                        {% if flashcards %}
+                            Generate another pack
+                        {% else %}
+                            Gjenero Flashcards te reja
+                        {% endif %}
                     </button>
                 </form>
             </div>
@@ -278,7 +282,7 @@
                 </form>
             {% elif not error_message %}
                 <div class="empty-state">
-                    Duke gjeneruar flashcards nga dokumenti. Nese faqja vonon, prit pak sepse modeli lokal mund te marre kohe.
+                    Click "Gjenero Flashcards te reja" to generate a concise flashcard pack from document chunks.
                 </div>
             {% endif %}
         </div>
@@ -288,11 +292,20 @@
 <script>
     const flashcardsForm = document.getElementById('flashcards-form');
     const submitButton = document.getElementById('flashcards-submit-button');
+    const newFlashcardsForm = document.getElementById('new-flashcards-form');
+    const newFlashcardsButton = document.getElementById('new-flashcards-button');
 
     if (flashcardsForm && submitButton) {
         flashcardsForm.addEventListener('submit', function () {
             submitButton.disabled = true;
             submitButton.textContent = 'Duke kontrolluar...';
+        });
+    }
+
+    if (newFlashcardsForm && newFlashcardsButton) {
+        newFlashcardsForm.addEventListener('submit', function () {
+            newFlashcardsButton.disabled = true;
+            newFlashcardsButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Duke gjeneruar...';
         });
     }
 

@@ -208,13 +208,17 @@
             <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
                 <div>
                     <h2 class="h4 fw-bold mb-1">Document Quiz</h2>
-                    <p class="text-muted mb-0">Pyetjet gjenerohen vetem nga teksti i ketij dokumenti.</p>
+                    <p class="text-muted mb-0">Using cached text, searching document chunks, then generating a small quiz pack.</p>
                 </div>
                 <form method="POST" class="m-0" id="new-quiz-form">
                     {% csrf_token %}
                     <input type="hidden" name="action" value="new">
                     <button class="btn btn-premium" type="submit" id="new-quiz-button">
-                        Gjenero Quiz te ri
+                        {% if questions %}
+                            Generate another pack
+                        {% else %}
+                            Gjenero Quiz te ri
+                        {% endif %}
                     </button>
                 </form>
             </div>
@@ -304,7 +308,7 @@
                 </form>
             {% elif not error_message %}
                 <div class="empty-state">
-                    Duke gjeneruar quiz-in nga AI. Nese faqja vonon, prit pak sepse modeli lokal mund te marre kohe.
+                    Click "Gjenero Quiz te ri" to generate a small quiz pack from document chunks.
                 </div>
             {% endif %}
         </div>
@@ -327,7 +331,7 @@
     if (newQuizForm && newQuizButton) {
         newQuizForm.addEventListener('submit', function () {
             newQuizButton.disabled = true;
-            newQuizButton.textContent = 'Duke gjeneruar...';
+            newQuizButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Duke gjeneruar...';
         });
     }
 </script>

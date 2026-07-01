@@ -626,7 +626,188 @@
             </div>
         </div>
     </div>
+
+    <div class="col-sm-6 col-lg-4 col-xl-3">
+        <a href="{% url 'exam_preparation' %}" class="text-decoration-none text-reset">
+            <div class="glass-card stat-card">
+                <div class="card-pad">
+                    <div class="d-flex justify-content-between align-items-start gap-3">
+                        <div>
+                            <p class="stat-label">Exam Preparation Center</p>
+                            <h2 class="stat-value">{{ predicted_exam_score }}%</h2>
+                            <p class="stat-label mt-1">Predicted Exam Score</p>
+                        </div>
+                        <span class="stat-icon"><i class="bi bi-mortarboard"></i></span>
+                    </div>
+                </div>
+            </div>
+        </a>
+    </div>
 </section>
+
+<div class="section-heading">
+    <div>
+        <h2 class="section-title">AI Learning Coach</h2>
+        <p class="section-subtitle">Today's coaching plan based on your real learning activity.</p>
+    </div>
+</div>
+
+<div class="glass-card mb-4">
+    <div class="card-pad">
+        <div class="row g-3">
+            <div class="col-md-6">
+                <div class="achievement-card h-100">
+                    <span class="achievement-badge">
+                        <i class="bi bi-stars"></i>
+                    </span>
+                    <div class="min-w-0">
+                        <p class="achievement-title">Today's Recommendation</p>
+                        <p class="achievement-description mb-0">{{ today_recommendation }}</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="achievement-card h-100">
+                    <span class="achievement-badge">
+                        <i class="bi bi-bullseye"></i>
+                    </span>
+                    <div class="min-w-0">
+                        <p class="achievement-title">Today's Focus</p>
+                        <p class="achievement-description mb-0">{{ today_focus }}</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="achievement-card h-100">
+                    <span class="achievement-badge">
+                        <i class="bi bi-exclamation-circle"></i>
+                    </span>
+                    <div class="min-w-0">
+                        <p class="achievement-title">Weakest Topic</p>
+                        <p class="achievement-description mb-0">
+                            {% if weakest_topic %}
+                                {{ weakest_topic.topic }} - {{ weakest_topic.average_score|floatformat:1 }}%
+                            {% else %}
+                                Not enough quiz data yet.
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="achievement-card h-100">
+                    <span class="achievement-badge">
+                        <i class="bi bi-graph-up-arrow"></i>
+                    </span>
+                    <div class="min-w-0">
+                        <p class="achievement-title">Most Improved Topic</p>
+                        <p class="achievement-description mb-0">
+                            {% if most_improved_topic %}
+                                {{ most_improved_topic.topic }} +{{ most_improved_topic.improvement|floatformat:1 }}%
+                            {% else %}
+                                Complete more quizzes to unlock this.
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="achievement-card h-100">
+                    <span class="achievement-badge">
+                        <i class="bi bi-calendar-check"></i>
+                    </span>
+                    <div class="min-w-0">
+                        <p class="achievement-title">Daily Study Goal</p>
+                        <p class="achievement-description mb-0">
+                            {{ daily_study_goal.duration_minutes }} min -
+                            {{ daily_study_goal.primary_task }}
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="achievement-card h-100">
+                    <span class="achievement-badge">
+                        <i class="bi bi-clock-history"></i>
+                    </span>
+                    <div class="min-w-0">
+                        <p class="achievement-title">Study Consistency</p>
+                        <p class="achievement-description mb-0">{{ study_consistency|floatformat:1 }}%</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="achievement-card h-100">
+                    <span class="achievement-badge">
+                        <i class="bi bi-hourglass-split"></i>
+                    </span>
+                    <div class="min-w-0">
+                        <p class="achievement-title">Recommended Duration</p>
+                        <p class="achievement-description mb-0">{{ recommended_study_duration }} minutes</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="achievement-card h-100">
+                    <span class="achievement-badge">
+                        <i class="bi bi-mortarboard"></i>
+                    </span>
+                    <div class="min-w-0">
+                        <p class="achievement-title">Exam Probability</p>
+                        <p class="achievement-description mb-0">{{ exam_probability|floatformat:1 }}%</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="section-heading">
+    <div>
+        <h2 class="section-title">Notifications</h2>
+        <p class="section-subtitle">Latest updates from your AI study coach.</p>
+    </div>
+</div>
+
+<div class="glass-card mb-4">
+    <div class="card-pad">
+        {% if latest_notifications %}
+            <div class="activity-list">
+                {% for notification in latest_notifications %}
+                    <div class="activity-row {% if not notification.is_read %}border border-primary-subtle bg-primary-subtle{% endif %}">
+                        <div class="activity-main">
+                            <span class="activity-icon">
+                                {% if notification.notification_type == 'success' %}
+                                    <i class="bi bi-check-circle"></i>
+                                {% elif notification.notification_type == 'warning' %}
+                                    <i class="bi bi-exclamation-triangle"></i>
+                                {% elif notification.notification_type == 'ai_recommendation' %}
+                                    <i class="bi bi-stars"></i>
+                                {% else %}
+                                    <i class="bi bi-bell"></i>
+                                {% endif %}
+                            </span>
+                            <div class="min-w-0">
+                                <p class="activity-title text-truncate">{{ notification.title }}</p>
+                                <div class="activity-meta">{{ notification.message }}</div>
+                            </div>
+                        </div>
+                        <div class="text-end flex-shrink-0">
+                            {% if not notification.is_read %}
+                                <span class="badge bg-primary">Unread</span>
+                            {% endif %}
+                            <div class="activity-meta mt-1">{{ notification.created_at|date:"d/m H:i" }}</div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="empty-state">
+                No notifications yet.
+            </div>
+        {% endif %}
+    </div>
+</div>
 
 <div class="row g-4">
     <section class="col-xl-8">
@@ -788,28 +969,38 @@
         <div class="section-heading">
             <div>
                 <h2 class="section-title">AI Learning Diagnosis</h2>
-                <p class="section-subtitle">Strengths and focus areas from quiz results.</p>
+                <p class="section-subtitle">Performance diagnosis and exam readiness from your activity.</p>
             </div>
         </div>
 
         <div class="glass-card mb-4">
             <div class="card-pad">
+                <div class="achievement-card mb-4">
+                    <span class="achievement-badge">
+                        <i class="bi bi-speedometer2"></i>
+                    </span>
+                    <div class="min-w-0">
+                        <p class="achievement-title">Exam Readiness</p>
+                        <p class="achievement-description mb-0">{{ exam_readiness|floatformat:1 }}%</p>
+                    </div>
+                </div>
+
                 <div class="mb-4">
                     <div class="d-flex align-items-center gap-2 mb-2">
                         <span class="activity-icon">
                             <i class="bi bi-stars"></i>
                         </span>
-                        <h3 class="h6 fw-bold mb-0">Strong Areas</h3>
+                        <h3 class="h6 fw-bold mb-0">Strong Topics</h3>
                     </div>
-                    {% if strong_areas %}
+                    {% if strong_topics %}
                         <div class="activity-list">
-                            {% for area in strong_areas %}
+                            {% for topic in strong_topics %}
                                 <div class="activity-row">
                                     <div class="min-w-0">
-                                        <p class="activity-title text-truncate">{{ area.topic }}</p>
+                                        <p class="activity-title text-truncate">{{ topic.topic }}</p>
                                         <div class="activity-meta">Average quiz score</div>
                                     </div>
-                                    <span class="badge bg-success">{{ area.average_score }}%</span>
+                                    <span class="badge bg-success">{{ topic.average_score|floatformat:1 }}%</span>
                                 </div>
                             {% endfor %}
                         </div>
@@ -825,17 +1016,17 @@
                         <span class="activity-icon">
                             <i class="bi bi-exclamation-triangle"></i>
                         </span>
-                        <h3 class="h6 fw-bold mb-0">Weak Areas</h3>
+                        <h3 class="h6 fw-bold mb-0">Weak Topics</h3>
                     </div>
-                    {% if weak_areas %}
+                    {% if weak_topics %}
                         <div class="activity-list">
-                            {% for area in weak_areas %}
+                            {% for topic in weak_topics %}
                                 <div class="activity-row">
                                     <div class="min-w-0">
-                                        <p class="activity-title text-truncate">{{ area.topic }}</p>
+                                        <p class="activity-title text-truncate">{{ topic.topic }}</p>
                                         <div class="activity-meta">Average quiz score</div>
                                     </div>
-                                    <span class="badge bg-warning text-dark">{{ area.average_score }}%</span>
+                                    <span class="badge bg-warning text-dark">{{ topic.average_score|floatformat:1 }}%</span>
                                 </div>
                             {% endfor %}
                         </div>
@@ -846,15 +1037,83 @@
                     {% endif %}
                 </div>
 
+                <div class="achievement-card mb-3">
+                    <span class="achievement-badge">
+                        <i class="bi bi-file-earmark-text-fill"></i>
+                    </span>
+                    <div class="min-w-0">
+                        <p class="achievement-title">Recommended Document</p>
+                        <p class="achievement-description">
+                            {% if recommended_document %}
+                                {{ recommended_document.title }}
+                            {% else %}
+                                No document available yet.
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+
                 <div class="achievement-card">
                     <span class="achievement-badge">
                         <i class="bi bi-lightbulb-fill"></i>
                     </span>
                     <div class="min-w-0">
-                        <p class="achievement-title">Recommendation</p>
-                        <p class="achievement-description">{{ learning_recommendation }}</p>
+                        <p class="achievement-title">Recommended Action</p>
+                        <p class="achievement-description">{{ recommended_action }}</p>
                     </div>
                 </div>
+            </div>
+        </div>
+
+        <div class="section-heading">
+            <div>
+                <h2 class="section-title">Weak Topic Recovery</h2>
+                <p class="section-subtitle">Focused recovery plan for topics that need practice.</p>
+            </div>
+        </div>
+
+        <div class="glass-card mb-4">
+            <div class="card-pad">
+                <div class="achievement-card mb-4">
+                    <span class="achievement-badge">
+                        <i class="bi bi-heart-pulse-fill"></i>
+                    </span>
+                    <div class="min-w-0">
+                        <p class="achievement-title">Recovery Score</p>
+                        <p class="achievement-description mb-0">{{ recovery_score|floatformat:0 }}%</p>
+                    </div>
+                </div>
+
+                {% if recovery_plan %}
+                    <div class="activity-list">
+                        {% for item in recovery_plan %}
+                            <div class="activity-row align-items-start">
+                                <div class="min-w-0">
+                                    <p class="activity-title text-truncate">{{ item.topic }}</p>
+                                    <div class="activity-meta">Weakness Level: {{ item.weakness_level }} ({{ item.average_score|floatformat:1 }}%)</div>
+                                    <div class="activity-meta">Recovery Action: {{ item.recovery_action }}</div>
+                                    <div class="activity-meta">
+                                        Recommended Quiz:
+                                        <a href="{% url 'document_quiz' item.document_id %}">{{ item.recommended_quiz }}</a>
+                                    </div>
+                                    <div class="activity-meta">
+                                        Recommended Flashcards:
+                                        <a href="{% url 'document_flashcards' item.document_id %}">{{ item.recommended_flashcards }}</a>
+                                    </div>
+                                    <div class="activity-meta">
+                                        Study Session:
+                                        <a href="{% url 'start_study_session' item.document_id %}">{{ item.recommended_study_session }}</a>
+                                    </div>
+                                </div>
+                                <span class="badge bg-warning text-dark">{{ item.weakness_level }}</span>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="empty-state">
+                        No weak topic recovery plan yet.
+                    </div>
+                {% endif %}
             </div>
         </div>
 

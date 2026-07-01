@@ -222,6 +222,14 @@
             font-weight: 950;
         }
 
+        .score-sub {
+            display: block;
+            margin-top: 2px;
+            color: rgba(219, 234, 254, 0.72);
+            font-size: 0.72rem;
+            font-weight: 800;
+        }
+
         .gold .score-pill {
             color: #fef3c7;
             background: rgba(250, 204, 21, 0.16);
@@ -313,6 +321,9 @@
 
                         <div class="score-pill">
                             {{ item.knowledge_score }}/100
+                            <span class="score-sub">{{ item.exam_readiness|floatformat:1 }}% exam ready</span>
+                            <span class="score-sub">{{ item.recovery_score|floatformat:0 }}% recovery</span>
+                            <span class="score-sub">{{ item.predicted_exam_score|floatformat:0 }}% predicted</span>
                         </div>
                     </div>
                 </article>

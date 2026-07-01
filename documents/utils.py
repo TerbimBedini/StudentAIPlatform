@@ -43,6 +43,71 @@ def extract_text_from_document(file_path):
     )
 
 
+def clean_document_text(text):
+    text = clean_extracted_text(text or '')
+    lines = [
+        line.strip()
+        for line in text.split('\n')
+        if line.strip()
+    ]
+
+    line_counts = {}
+    for line in lines:
+        if len(line) <= 90:
+            line_counts[line] = line_counts.get(line, 0) + 1
+
+    cleaned_lines = []
+    for line in lines:
+        looks_like_repeated_header = (
+            line_counts.get(line, 0) >= 3
+            and not re.search(r'[.!?]$', line)
+        )
+        if looks_like_repeated_header:
+            continue
+        cleaned_lines.append(line)
+
+    paragraphs = []
+    current = []
+
+    for line in cleaned_lines:
+        if current and re.match(r'^(#{1,6}\s+|\d+[\).]\s+|[-*]\s+)', line):
+            paragraphs.append(' '.join(current))
+            current = [line]
+            continue
+
+        if current and len(line) > 80 and current[-1].endswith(('.', '?', '!', ':')):
+            paragraphs.append(' '.join(current))
+            current = [line]
+            continue
+
+        current.append(line)
+
+    if current:
+        paragraphs.append(' '.join(current))
+
+    cleaned = '\n\n'.join(paragraphs)
+    cleaned = re.sub(r'[ \t]{2,}', ' ', cleaned)
+    cleaned = re.sub(r'\n{3,}', '\n\n', cleaned)
+
+    return cleaned.strip()
+
+
+def get_document_text(document):
+    cached_text = getattr(document, 'extracted_text', '') or ''
+
+    if cached_text.strip():
+        return clean_document_text(cached_text)
+
+    text = extract_text_from_document(document.file.path)
+    cleaned_text = clean_document_text(text)
+
+    if hasattr(document, 'extracted_text'):
+        document.extracted_text = cleaned_text
+        document.save(update_fields=['extracted_text'])
+
+    return cleaned_text
+
+
 def extract_text_from_docx(docx_path):
     try:
         with ZipFile(docx_path) as docx:

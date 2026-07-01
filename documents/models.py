@@ -266,6 +266,49 @@ class Activity(models.Model):
         return f'{self.user} - {self.activity_type}'
 
 
+class Notification(models.Model):
+    TYPE_SUCCESS = 'success'
+    TYPE_WARNING = 'warning'
+    TYPE_REMINDER = 'reminder'
+    TYPE_AI_RECOMMENDATION = 'ai_recommendation'
+
+    TYPE_CHOICES = (
+        (TYPE_SUCCESS, 'Success'),
+        (TYPE_WARNING, 'Warning'),
+        (TYPE_REMINDER, 'Reminder'),
+        (TYPE_AI_RECOMMENDATION, 'AI Recommendation'),
+    )
+
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='notifications'
+    )
+
+    notification_type = models.CharField(
+        max_length=30,
+        choices=TYPE_CHOICES,
+        default=TYPE_REMINDER
+    )
+
+    title = models.CharField(max_length=200)
+
+    message = models.TextField()
+
+    is_read = models.BooleanField(default=False)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['user', 'is_read', '-created_at']),
+        ]
+
+    def __str__(self):
+        return f'{self.user} - {self.title}'
+
+
 class QuizAttempt(models.Model):
     document = models.ForeignKey(
         Document,

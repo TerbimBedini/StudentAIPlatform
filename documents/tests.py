@@ -19,10 +19,26 @@ from .models import (
     FlashcardAttempt,
     LibraryDocument,
     QuizAttempt,
+    StudySession,
 )
 from .utils import extract_text_from_docx, extract_text_from_pdf
-from .ai import AIError, generate_fast_document_quiz, select_quiz_source_text
+from .ai import (
+    AIError,
+    ask_document_ai,
+    generate_exam,
+    generate_fast_document_quiz,
+    generate_flashcards,
+    select_quiz_source_text,
+)
+from .learning_diagnosis import (
+    get_exam_readiness,
+    get_recommended_action,
+    get_recommended_document,
+    get_strong_topics,
+    get_weak_topics,
+)
 from .progress import analyze_student_strengths, get_next_study_action
+from .recovery import get_recovery_plan, get_recovery_score
 from .views import evaluate_flashcard_answer, parse_exam_response, parse_quiz_response
 
 
@@ -232,6 +248,124 @@ class DocumentTests(TestCase):
         self.assertEqual(diagnosis['weak_areas'][0]['topic'], 'Calculus')
         self.assertEqual(diagnosis['weak_areas'][0]['average_score'], 50)
         self.assertIn('Calculus', diagnosis['recommendation'])
+
+    def test_learning_diagnosis_handles_empty_user(self):
+        user = User.objects.create_user(
+            username='diagnosis_empty_user',
+            password='password123'
+        )
+
+        self.assertEqual(get_strong_topics(user), [])
+        self.assertEqual(get_weak_topics(user), [])
+        self.assertEqual(get_exam_readiness(user), 0)
+        self.assertIsNone(get_recommended_document(user))
+        self.assertEqual(
+            get_recommended_action(user),
+            'Upload your first document.'
+        )
+
+    def test_learning_diagnosis_recommends_lowest_performing_document(self):
+        user = User.objects.create_user(
+            username='diagnosis_ranked_user',
+            password='password123'
+        )
+        strong_path = self.create_pdf(text='Strong topic material')
+        weak_path = self.create_pdf(text='Weak topic material')
+        strong_document = Document.objects.create(
+            title='Networks',
+            file=strong_path.name,
+            uploaded_by=user
+        )
+        weak_document = Document.objects.create(
+            title='Databases',
+            file=weak_path.name,
+            uploaded_by=user
+        )
+        QuizAttempt.objects.create(
+            document=strong_document,
+            user=user,
+            score=9,
+            total=10
+        )
+        QuizAttempt.objects.create(
+            document=weak_document,
+            user=user,
+            score=4,
+            total=10
+        )
+
+        self.assertEqual(get_strong_topics(user)[0]['topic'], 'Networks')
+        self.assertEqual(get_weak_topics(user)[0]['topic'], 'Databases')
+        self.assertEqual(get_recommended_document(user), weak_document)
+        self.assertEqual(
+            get_recommended_action(user),
+            'Review weak topics using flashcards and summaries.'
+        )
+
+    def test_recovery_plan_handles_user_without_quiz_history(self):
+        user = User.objects.create_user(
+            username='recovery_empty_user',
+            password='password123'
+        )
+
+        self.assertEqual(get_recovery_plan(user), [])
+        self.assertEqual(get_recovery_score(user), 0)
+
+    def test_recovery_plan_recommends_actions_for_weak_topics(self):
+        user = User.objects.create_user(
+            username='recovery_user',
+            password='password123'
+        )
+        weak_path = self.create_pdf(text='Database normalization material')
+        strong_path = self.create_pdf(text='Network routing material')
+        weak_document = Document.objects.create(
+            title='Databases',
+            file=weak_path.name,
+            uploaded_by=user
+        )
+        strong_document = Document.objects.create(
+            title='Networks',
+            file=strong_path.name,
+            uploaded_by=user
+        )
+        QuizAttempt.objects.create(
+            document=weak_document,
+            user=user,
+            score=3,
+            total=10
+        )
+        QuizAttempt.objects.create(
+            document=weak_document,
+            user=user,
+            score=5,
+            total=10
+        )
+        QuizAttempt.objects.create(
+            document=strong_document,
+            user=user,
+            score=9,
+            total=10
+        )
+        FlashcardAttempt.objects.create(
+            document=weak_document,
+            user=user,
+            average_score=70,
+            category='Good',
+            cards=[]
+        )
+        StudySession.objects.create(
+            document=weak_document,
+            user=user,
+            status=StudySession.STATUS_COMPLETED
+        )
+
+        plan = get_recovery_plan(user)
+
+        self.assertEqual(len(plan), 1)
+        self.assertEqual(plan[0]['topic'], 'Databases')
+        self.assertEqual(plan[0]['weakness_level'], 'High')
+        self.assertIn('focused quiz', plan[0]['recommended_quiz'])
+        self.assertGreater(get_recovery_score(user), 0)
 
     def test_get_next_study_action_without_documents(self):
         user = User.objects.create_user(
@@ -778,9 +912,13 @@ class DocumentTests(TestCase):
         self.assertEqual(questions[0]['answer'], 'A')
         self.assertIn('matjen e njohurive', questions[0]['explanation'])
 
-    @patch('documents.views.generate_exam')
-    def test_exam_simulator_generates_exam_for_owned_document(self, mock_generate_exam):
-        mock_generate_exam.return_value = '''
+    @patch('documents.views.generate_mixed_exam')
+    def test_exam_simulator_generates_exam_for_owned_document(
+        self,
+        mock_generate_mixed_exam
+    ):
+        mock_generate_mixed_exam.return_value = '''
+        QUIZ
         1. Cfare permendet ne material?
         A) Koncepti kryesor
         B) Nje teme tjeter
@@ -788,6 +926,10 @@ class DocumentTests(TestCase):
         D) Nje detaj i palidhur
         Pergjigjja e sakte: A
         Shpjegim: Koncepti kryesor permendet ne dokument.
+
+        FLASHCARDS
+        1. Pyetje: Cili eshte koncepti kryesor?
+           Pergjigje: Koncepti kryesor permendet ne material.
         '''
         user = User.objects.create_user(
             username='exam_student',
@@ -807,8 +949,96 @@ class DocumentTests(TestCase):
         self.assertContains(response, 'Exam Simulator')
         self.assertContains(response, 'Exam Source')
         self.assertContains(response, 'Cfare permendet ne material?')
-        self.assertContains(response, 'Answer Key')
-        self.assertContains(response, 'Koncepti kryesor permendet ne dokument.')
+        self.assertContains(response, 'Flashcard')
+        self.assertContains(response, 'Submit Exam')
+        self.assertContains(response, 'New Exam')
+
+    @patch('documents.views.generate_mixed_exam')
+    def test_exam_simulator_submit_shows_wrong_question_review(
+        self,
+        mock_generate_mixed_exam
+    ):
+        mock_generate_mixed_exam.return_value = '''
+        QUIZ
+        1. Cfare permendet ne material?
+        A) Koncepti kryesor
+        B) Nje teme tjeter
+        C) Nje pergjigje e gabuar
+        D) Nje detaj i palidhur
+        Pergjigjja e sakte: A
+        Shpjegim: Koncepti kryesor permendet ne dokument.
+
+        FLASHCARDS
+        1. Pyetje: Cili eshte koncepti kryesor?
+           Pergjigje: Koncepti kryesor permendet ne material.
+        '''
+        user = User.objects.create_user(
+            username='exam_submit_student',
+            password='password123'
+        )
+        path = self.create_pdf(text='Koncepti kryesor permendet ne material.')
+        document = Document.objects.create(
+            title='Exam Submit Source',
+            file=path.name,
+            uploaded_by=user
+        )
+        self.client.login(username='exam_submit_student', password='password123')
+        self.client.get(reverse('exam_simulator', args=[document.id]))
+
+        response = self.client.post(
+            reverse('exam_simulator', args=[document.id]),
+            {
+                'question_0': 'B',
+                'flashcard_1': '',
+            }
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Exam Result')
+        self.assertContains(response, 'Wrong Questions Review')
+        self.assertContains(response, 'Right answer')
+        self.assertContains(response, 'Where to find it')
+
+    @patch('documents.views.generate_mixed_exam')
+    def test_exam_simulator_new_exam_action_redirects(
+        self,
+        mock_generate_mixed_exam
+    ):
+        mock_generate_mixed_exam.return_value = '''
+        QUIZ
+        1. Cfare permendet ne material?
+        A) Koncepti kryesor
+        B) Nje teme tjeter
+        C) Nje pergjigje e gabuar
+        D) Nje detaj i palidhur
+        Pergjigjja e sakte: A
+        Shpjegim: Koncepti kryesor permendet ne dokument.
+
+        FLASHCARDS
+        1. Pyetje: Cili eshte koncepti kryesor?
+           Pergjigje: Koncepti kryesor permendet ne material.
+        '''
+        user = User.objects.create_user(
+            username='exam_new_student',
+            password='password123'
+        )
+        path = self.create_pdf(text='Koncepti kryesor permendet ne material.')
+        document = Document.objects.create(
+            title='Exam New Source',
+            file=path.name,
+            uploaded_by=user
+        )
+        self.client.login(username='exam_new_student', password='password123')
+
+        response = self.client.post(
+            reverse('exam_simulator', args=[document.id]),
+            {'action': 'new_exam'}
+        )
+
+        self.assertRedirects(
+            response,
+            reverse('exam_simulator', args=[document.id])
+        )
 
     def test_exam_simulator_blocks_other_users_document(self):
         owner = User.objects.create_user(
@@ -847,12 +1077,51 @@ class DocumentTests(TestCase):
 
         quiz = generate_fast_document_quiz(text, max_questions=3)
 
-        self.assertIn('1. Cfare thuhet', quiz)
+        self.assertIn('1. ', quiz)
+        self.assertNotIn('Cfare thuhet ne dokument per', quiz)
         self.assertLess(
             quiz.index('Fjalia e trete'),
             quiz.index('Fjalia e pare')
         )
         mock_sample.assert_not_called()
+
+    @patch('documents.ai.ollama_generate')
+    def test_generate_exam_falls_back_when_ollama_fails(self, mock_ollama_generate):
+        mock_ollama_generate.side_effect = AIError('Ollama unavailable')
+        text = (
+            'StudentAI perdor dokumentin per te krijuar pyetje provimi me kuptim. '
+            'Pyetjet duhet te lidhen me idete kryesore dhe jo me fjale te rastit.'
+        )
+
+        exam = generate_exam(text)
+
+        self.assertIn('Pergjigjja e sakte:', exam)
+        self.assertIn('StudentAI', exam)
+
+    @patch('documents.ai.ollama_generate')
+    def test_generate_flashcards_falls_back_when_ollama_fails(self, mock_ollama_generate):
+        mock_ollama_generate.side_effect = AIError('Ollama unavailable')
+        text = (
+            'Flashcards ndihmojne studentin te perserise konceptet kryesore '
+            'dhe te kontrolloje kuptimin e materialit.'
+        )
+
+        flashcards = generate_flashcards(text)
+
+        self.assertIn('Pyetje:', flashcards)
+        self.assertIn('Pergjigje:', flashcards)
+
+    @patch('documents.ai.call_ollama')
+    def test_document_chat_returns_context_fallback_when_ollama_fails(self, mock_call_ollama):
+        mock_call_ollama.side_effect = AIError('Ollama unavailable')
+        answer = ask_document_ai(
+            'Fotosinteza perdor driten per te prodhuar energji ne bime. '
+            'Klorofili ndihmon bimen te thithe driten.',
+            'Cfare ben fotosinteza?'
+        )
+
+        self.assertIn('Sipas dokumentit', answer)
+        self.assertIn('Fotosinteza', answer)
 
     @patch('documents.ai.random.shuffle')
     def test_quiz_source_text_samples_different_windows_for_large_documents(self, mock_shuffle):

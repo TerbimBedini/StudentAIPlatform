@@ -4,6 +4,7 @@ import mimetypes
 import random
 import re
 import threading
+import time
 from pathlib import Path
 
 from django.contrib.auth.decorators import login_required
@@ -19,8 +20,9 @@ from django.views.decorators.clickjacking import xframe_options_sameorigin
 from .ai import (
     AIError,
     ask_document_ai,
-    generate_exam,
+    generate_fast_document_quiz,
     generate_flashcards,
+    generate_mixed_exam,
     generate_quiz,
     generate_summary,
 )
@@ -35,12 +37,12 @@ from .models import (
     StudySession,
 )
 from .rag import (
-    create_document_index,
-    get_random_document_chunks,
+    ensure_document_index,
+    get_sample_document_chunks,
     search_document_chunks,
     search_multiple_documents,
 )
-from .utils import TextExtractionError, extract_text_from_document
+from .utils import TextExtractionError, get_document_text
 
 
 AI_RATE_LIMIT = 10
@@ -78,13 +80,38 @@ def combine_documents_text(documents):
     text_parts = []
 
     for document in documents:
-        text = extract_text_from_document(document.file.path)
+        text = get_document_text(document)
         if text:
             text_parts.append(
-                f'Dokumenti: {document.title}\n{text}'
+                f'Dokumenti: {document.title}\n{text[:2500]}'
             )
 
     return '\n\n---\n\n'.join(text_parts)
+
+
+def combine_document_chunks(documents, chunk_count=5, fallback_chars=1800):
+    chunk_parts = []
+    fallback_parts = []
+
+    for document in documents:
+        document_text = get_document_text(document)
+        if document_text:
+            fallback_parts.append(
+                f'Dokumenti: {document.title}\n{document_text[:fallback_chars]}'
+            )
+
+        chunks = get_sample_document_chunks(document, chunk_count=2)
+
+        if chunks:
+            chunk_parts.extend(
+                f'Dokumenti: {document.title}\n{chunk}'
+                for chunk in chunks
+                if chunk and chunk.strip() and chunk.strip() not in document_text
+            )
+
+    random.shuffle(chunk_parts)
+    combined_parts = fallback_parts + chunk_parts
+    return '\n\n---\n\n'.join(combined_parts[:chunk_count])
 
 
 def record_activity(user, activity_type, document_title):
@@ -112,6 +139,154 @@ def get_previous_quiz_questions(user, documents=None, limit=25):
     return questions[:limit]
 
 
+def get_generation_context(document, chunk_count, fallback_chars):
+    started_at = time.perf_counter()
+    text = get_document_text(document)
+    if not text.strip():
+        raise TextExtractionError(
+            'Nuk u gjet tekst i lexueshem ne kete dokument.'
+        )
+
+    chunks = get_sample_document_chunks(document, chunk_count=chunk_count)
+    context = '\n\n---\n\n'.join(chunks).strip()
+    logger.info(
+        'Sample chunks for document %s: %.1f seconds',
+        document.id,
+        time.perf_counter() - started_at
+    )
+    return context or text[:fallback_chars], chunks, text
+
+
+def generate_quiz_for_document(document, user):
+    total_started_at = time.perf_counter()
+    context, chunks, _text = get_generation_context(
+        document,
+        chunk_count=3,
+        fallback_chars=1600
+    )
+    started_at = time.perf_counter()
+    raw_quiz = generate_quiz(
+        context,
+        previous_questions=get_previous_quiz_questions(
+            user,
+            documents=[document]
+        ),
+        context_chunks=chunks
+    )
+    logger.info(
+        'Direct quiz generation for document %s: %.1f seconds',
+        document.id,
+        time.perf_counter() - started_at
+    )
+    started_at = time.perf_counter()
+    questions = parse_quiz_response(raw_quiz)
+    logger.info(
+        'Quiz JSON parsing for document %s: %.1f seconds',
+        document.id,
+        time.perf_counter() - started_at
+    )
+    if len(questions) < 5:
+        started_at = time.perf_counter()
+        fallback_raw = generate_fast_document_quiz(context, max_questions=5)
+        fallback_questions = parse_quiz_response(fallback_raw)
+        for fallback_question in fallback_questions:
+            questions.append(fallback_question)
+            if len(questions) >= 5:
+                break
+        while questions and len(questions) < 5:
+            source_question = random.choice(questions)
+            cloned_question = {
+                'question': source_question['question'],
+                'options': source_question['options'].copy(),
+                'answer': source_question['answer'],
+            }
+            questions.append(cloned_question)
+        logger.info(
+            'Quiz fallback completion for document %s: %.1f seconds',
+            document.id,
+            time.perf_counter() - started_at
+        )
+
+    random.shuffle(questions)
+    questions = questions[:5]
+    if not questions:
+        raise AIError('AI nuk arriti te gjeneroje quiz te vlefshem.')
+    logger.info(
+        'Total quiz generation for document %s: %.1f seconds',
+        document.id,
+        time.perf_counter() - total_started_at
+    )
+    return questions, raw_quiz
+
+
+def generate_flashcards_for_document(document):
+    total_started_at = time.perf_counter()
+    context, _chunks, _text = get_generation_context(
+        document,
+        chunk_count=3,
+        fallback_chars=2200
+    )
+    started_at = time.perf_counter()
+    raw_flashcards = generate_flashcards(context)
+    logger.info(
+        'Direct flashcards generation for document %s: %.1f seconds',
+        document.id,
+        time.perf_counter() - started_at
+    )
+    started_at = time.perf_counter()
+    flashcards = parse_flashcards_response(raw_flashcards)
+    logger.info(
+        'Flashcards JSON parsing for document %s: %.1f seconds',
+        document.id,
+        time.perf_counter() - started_at
+    )
+    random.shuffle(flashcards)
+    if not flashcards:
+        raise AIError('AI nuk arriti te gjeneroje flashcards te vlefshme.')
+    logger.info(
+        'Total flashcards generation for document %s: %.1f seconds',
+        document.id,
+        time.perf_counter() - total_started_at
+    )
+    return flashcards, raw_flashcards
+
+
+def generate_exam_for_document(document):
+    total_started_at = time.perf_counter()
+    context, _chunks, document_text = get_generation_context(
+        document,
+        chunk_count=3,
+        fallback_chars=2200
+    )
+    started_at = time.perf_counter()
+    raw_exam = generate_mixed_exam(context)
+    logger.info(
+        'Direct exam generation for document %s: %.1f seconds',
+        document.id,
+        time.perf_counter() - started_at
+    )
+    started_at = time.perf_counter()
+    quiz_items, flashcard_items = parse_mixed_exam_response(raw_exam)
+    questions = build_mixed_exam_items(
+        quiz_items,
+        flashcard_items,
+        document_text
+    )
+    logger.info(
+        'Exam JSON parsing/build for document %s: %.1f seconds',
+        document.id,
+        time.perf_counter() - started_at
+    )
+    if not questions:
+        raise AIError('AI nuk arriti te gjeneroje simulim provimi nga ky dokument.')
+    logger.info(
+        'Total exam generation for document %s: %.1f seconds',
+        document.id,
+        time.perf_counter() - total_started_at
+    )
+    return questions, raw_exam
+
+
 def process_uploaded_document_ai(document_id, user_id):
     try:
         close_old_connections()
@@ -136,8 +311,14 @@ def process_uploaded_document_ai(document_id, user_id):
         )
 
         try:
-            text = extract_text_from_document(document.file.path)
+            text = get_document_text(document)
+            started_at = time.perf_counter()
             document.summary = generate_summary(text)
+            logger.info(
+                'Summary generation for document %s: %.1f seconds',
+                document.id,
+                time.perf_counter() - started_at
+            )
             document.ai_processed = True
             document.summary_status = Document.STATUS_COMPLETED
             document.processing_error = ''
@@ -151,7 +332,7 @@ def process_uploaded_document_ai(document_id, user_id):
             )
 
             if document.file.name.lower().endswith('.pdf'):
-                create_document_index(document)
+                ensure_document_index(document)
 
             record_activity(
                 document.uploaded_by,
@@ -523,14 +704,63 @@ def study_session_detail(request, session_id):
     )
 
 
+def parse_ai_json_payload(raw_content):
+    cleaned = (raw_content or '').strip()
+    cleaned = re.sub(r'^```(?:json)?\s*', '', cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r'\s*```$', '', cleaned)
+
+    try:
+        return json.loads(cleaned)
+    except (TypeError, ValueError, json.JSONDecodeError):
+        pass
+
+    candidates = []
+    if '[' in cleaned and ']' in cleaned:
+        candidates.append(cleaned[cleaned.index('['):cleaned.rindex(']') + 1])
+    if '{' in cleaned and '}' in cleaned:
+        candidates.append(cleaned[cleaned.index('{'):cleaned.rindex('}') + 1])
+
+    for candidate in candidates:
+        try:
+            return json.loads(candidate)
+        except (TypeError, ValueError, json.JSONDecodeError):
+            continue
+
+    return None
+
+
+def get_json_items(payload, *keys):
+    if isinstance(payload, list):
+        return payload
+
+    if not isinstance(payload, dict):
+        return []
+
+    for key in keys:
+        value = payload.get(key)
+        if isinstance(value, list):
+            return value
+
+    return []
+
+
 def parse_quiz_response(raw_quiz):
     raw_quiz = raw_quiz.strip()
     raw_quiz = re.sub(r'^```(?:json)?\s*', '', raw_quiz, flags=re.IGNORECASE)
     raw_quiz = re.sub(r'\s*```$', '', raw_quiz)
-    text_questions = parse_text_quiz_response(raw_quiz)
 
-    if text_questions:
-        return clean_quiz_questions(text_questions)
+    json_payload = parse_ai_json_payload(raw_quiz)
+    json_questions = get_json_items(
+        json_payload,
+        'questions',
+        'quiz',
+        'items'
+    )
+
+    if json_questions:
+        cleaned_questions = clean_quiz_questions(json_questions)
+        if cleaned_questions:
+            return cleaned_questions
 
     try:
         if '[' in raw_quiz and ']' in raw_quiz:
@@ -550,6 +780,19 @@ def parse_exam_response(raw_exam):
     raw_exam = raw_exam.strip()
     raw_exam = re.sub(r'^```(?:json)?\s*', '', raw_exam, flags=re.IGNORECASE)
     raw_exam = re.sub(r'\s*```$', '', raw_exam)
+
+    json_payload = parse_ai_json_payload(raw_exam)
+    json_questions = get_json_items(
+        json_payload,
+        'questions',
+        'quiz',
+        'items'
+    )
+
+    if json_questions:
+        cleaned_questions = clean_exam_questions(json_questions)
+        if cleaned_questions:
+            return cleaned_questions
 
     try:
         if '[' in raw_exam and ']' in raw_exam:
@@ -650,6 +893,126 @@ def clean_exam_questions(questions):
         })
 
     return cleaned_questions[:10]
+
+
+def find_answer_reference(document_text, *texts):
+    reference_words = set()
+    for text in texts:
+        reference_words.update(normalize_answer_words(str(text)))
+
+    sentences = [
+        sentence.strip()
+        for sentence in re.split(r'(?<=[.!?])\s+|\n+', document_text)
+        if len(sentence.strip()) >= 25
+    ]
+
+    if not sentences:
+        return document_text.strip()[:260]
+
+    best_sentence = ''
+    best_score = 0
+
+    for sentence in sentences:
+        sentence_words = normalize_answer_words(sentence)
+        score = len(reference_words & sentence_words)
+        if score > best_score:
+            best_sentence = sentence
+            best_score = score
+
+    if best_sentence:
+        return best_sentence[:320]
+
+    return sentences[0][:320]
+
+
+def build_mixed_exam_items(quiz_questions, flashcards, document_text):
+    quiz_items = quiz_questions[:]
+    flashcard_items = flashcards[:]
+    random.shuffle(quiz_items)
+    random.shuffle(flashcard_items)
+
+    quiz_target = min(3, len(quiz_items))
+    flashcard_target = min(2, len(flashcard_items))
+
+    mixed_items = []
+
+    for question in quiz_items[:quiz_target]:
+        correct_answer = question['options'].get(question['answer'], '')
+        mixed_items.append({
+            'type': 'quiz',
+            'question': question['question'],
+            'options': question['options'],
+            'answer': question['answer'],
+            'correct_answer': correct_answer,
+            'explanation': question['explanation'],
+            'source_reference': find_answer_reference(
+                document_text,
+                question['question'],
+                correct_answer,
+                question['explanation']
+            ),
+        })
+
+    for flashcard in flashcard_items[:flashcard_target]:
+        answer = flashcard.get('answer', '')
+        mixed_items.append({
+            'type': 'flashcard',
+            'question': flashcard.get('question', ''),
+            'answer': answer,
+            'correct_answer': answer,
+            'explanation': 'Compare your answer with the model answer and review the document reference.',
+            'source_reference': find_answer_reference(
+                document_text,
+                flashcard.get('question', ''),
+                answer
+            ),
+        })
+
+    random.shuffle(mixed_items)
+    return mixed_items[:5]
+
+
+def split_mixed_exam_content(raw_content):
+    flashcard_match = re.search(
+        r'\bFLASHCARDS?\b\s*:?',
+        raw_content,
+        re.IGNORECASE
+    )
+
+    if not flashcard_match:
+        return raw_content, raw_content
+
+    quiz_text = raw_content[:flashcard_match.start()]
+    flashcard_text = raw_content[flashcard_match.end():]
+    quiz_text = re.sub(
+        r'^\s*\bQUIZ(?:\s+QUESTIONS?)?\b\s*:?',
+        '',
+        quiz_text,
+        flags=re.IGNORECASE
+    ).strip()
+
+    return quiz_text.strip(), flashcard_text.strip()
+
+
+def parse_mixed_exam_response(raw_content):
+    json_payload = parse_ai_json_payload(raw_content)
+
+    if isinstance(json_payload, dict):
+        quiz_items = clean_exam_questions(
+            get_json_items(json_payload, 'quiz', 'questions', 'items')
+        )
+        flashcard_items = clean_flashcards_response(
+            get_json_items(json_payload, 'flashcards', 'cards')
+        )
+
+        if quiz_items or flashcard_items:
+            return quiz_items, flashcard_items
+
+    raw_exam, raw_flashcards = split_mixed_exam_content(raw_content)
+    return (
+        parse_exam_response(raw_exam),
+        parse_flashcards_response(raw_flashcards)
+    )
 
 
 def clean_quiz_questions(questions):
@@ -839,8 +1202,55 @@ def parse_text_quiz_response(raw_quiz):
     return questions
 
 
+def clean_flashcards_response(flashcards):
+    cleaned_flashcards = []
+
+    for item in flashcards:
+        if not isinstance(item, dict):
+            continue
+
+        question = (
+            item.get('question')
+            or item.get('pyetje')
+            or item.get('front')
+            or ''
+        )
+        answer = (
+            item.get('answer')
+            or item.get('pergjigje')
+            or item.get('back')
+            or ''
+        )
+
+        question = str(question).strip()
+        answer = str(answer).strip()
+
+        if not question or not answer:
+            continue
+
+        cleaned_flashcards.append({
+            'question': question,
+            'answer': answer,
+        })
+
+    return cleaned_flashcards[:10]
+
+
 def parse_flashcards_response(raw_flashcards):
-    blocks = re.split(r'\n\s*(?=\d+[\).]\s*)', raw_flashcards.strip())
+    json_payload = parse_ai_json_payload(raw_flashcards)
+    json_flashcards = get_json_items(
+        json_payload,
+        'flashcards',
+        'cards',
+        'items'
+    )
+
+    if json_flashcards:
+        cleaned_flashcards = clean_flashcards_response(json_flashcards)
+        if cleaned_flashcards:
+            return cleaned_flashcards
+
+    blocks = re.split(r'\n\s*(?=\d+[\).]\s*)', (raw_flashcards or '').strip())
     flashcards = []
 
     for block in blocks:
@@ -866,7 +1276,7 @@ def parse_flashcards_response(raw_flashcards):
             'answer': answer.strip()
         })
 
-    return flashcards[:10]
+    return clean_flashcards_response(flashcards)
 
 
 def normalize_answer_words(text):
@@ -1040,6 +1450,7 @@ def document_chat(request, document_id):
     error_message = None
 
     if request.method == "POST":
+        request_started_at = time.perf_counter()
         question = request.POST.get("question", "").strip()
 
         if not question:
@@ -1052,14 +1463,25 @@ def document_chat(request, document_id):
                 relevant_text = search_document_chunks(
                     document,
                     question,
-                    n_results=8
+                    n_results=4
                 )
 
                 if not relevant_text.strip():
-                    error_message = 'Nuk u gjet tekst i lexueshem ne kete dokument.'
+                    error_message = 'Dokumenti nuk përmban informacion të mjaftueshëm për këtë pyetje.'
                 else:
+                    started_at = time.perf_counter()
                     answer = ask_document_ai(relevant_text, question)
+                    logger.info(
+                        'AI Chat for document %s: %.1f seconds',
+                        document.id,
+                        time.perf_counter() - started_at
+                    )
                     record_activity(request.user, 'chat', document.title)
+                    logger.info(
+                        'AI Chat total request for document %s: %.1f seconds',
+                        document.id,
+                        time.perf_counter() - request_started_at
+                    )
             except TextExtractionError as exc:
                 error_message = str(exc)
             except AIError as exc:
@@ -1100,6 +1522,7 @@ def document_chat_ask(request, document_id):
         )
 
     try:
+        request_started_at = time.perf_counter()
         if not consume_ai_request_quota(request.user):
             return JsonResponse(
                 {'error': ai_rate_limit_message()},
@@ -1109,17 +1532,28 @@ def document_chat_ask(request, document_id):
         relevant_text = search_document_chunks(
             document,
             question,
-            n_results=8
+            n_results=4
         )
 
         if not relevant_text.strip():
             return JsonResponse(
-                {'error': 'Nuk u gjet tekst i lexueshem ne kete dokument.'},
+                {'error': 'Dokumenti nuk përmban informacion të mjaftueshëm për këtë pyetje.'},
                 status=400
             )
 
+        started_at = time.perf_counter()
         answer = ask_document_ai(relevant_text, question)
+        logger.info(
+            'AI Chat JSON for document %s: %.1f seconds',
+            document.id,
+            time.perf_counter() - started_at
+        )
         record_activity(request.user, 'chat', document.title)
+        logger.info(
+            'AI Chat JSON total request for document %s: %.1f seconds',
+            document.id,
+            time.perf_counter() - request_started_at
+        )
 
         return JsonResponse({
             'question': question,
@@ -1143,6 +1577,7 @@ def document_study(request, document_id):
         id=document_id,
         uploaded_by=request.user
     )
+
     quiz_session_key = f'study_quiz_{document.id}'
     raw_quiz_session_key = f'study_raw_quiz_{document.id}'
     flashcard_session_key = f'study_flashcards_{document.id}'
@@ -1169,6 +1604,7 @@ def document_study(request, document_id):
     ).order_by('-started_at').first()
 
     if request.method == 'POST':
+        request_started_at = time.perf_counter()
         action = request.POST.get('action')
 
         if action in ('chat', 'ask_ai'):
@@ -1184,10 +1620,21 @@ def document_study(request, document_id):
                     relevant_text = search_document_chunks(
                         document,
                         chat_question,
-                        n_results=8
+                        n_results=4
                     )
 
+                    if not relevant_text.strip():
+                        raise AIError(
+                            'Dokumenti nuk përmban informacion të mjaftueshëm për këtë pyetje.'
+                        )
+
+                    started_at = time.perf_counter()
                     chat_answer = ask_document_ai(relevant_text, chat_question)
+                    logger.info(
+                        'Study AI Chat for document %s: %.1f seconds',
+                        document.id,
+                        time.perf_counter() - started_at
+                    )
                     chat_messages.append({
                         'question': chat_question,
                         'answer': chat_answer
@@ -1208,14 +1655,21 @@ def document_study(request, document_id):
                 if not consume_ai_request_quota(request.user):
                     raise AIError(ai_rate_limit_message())
 
-                text = extract_text_from_document(document.file.path)
+                context_chunks = get_sample_document_chunks(document, chunk_count=3)
+                text = '\n\n---\n\n'.join(context_chunks) or get_document_text(document)[:1600]
+                started_at = time.perf_counter()
                 raw_quiz = generate_quiz(
                     text,
                     previous_questions=get_previous_quiz_questions(
                         request.user,
                         documents=[document]
                     ),
-                    context_chunks=get_random_document_chunks(document)
+                    context_chunks=context_chunks
+                )
+                logger.info(
+                    'Study quiz generation for document %s: %.1f seconds',
+                    document.id,
+                    time.perf_counter() - started_at
                 )
                 quiz = raw_quiz
                 questions = parse_quiz_response(raw_quiz)
@@ -1289,8 +1743,15 @@ def document_study(request, document_id):
                 if not consume_ai_request_quota(request.user):
                     raise AIError(ai_rate_limit_message())
 
-                text = extract_text_from_document(document.file.path)
+                context_chunks = get_sample_document_chunks(document, chunk_count=3)
+                text = '\n\n---\n\n'.join(context_chunks) or get_document_text(document)[:2200]
+                started_at = time.perf_counter()
                 raw_flashcards = generate_flashcards(text)
+                logger.info(
+                    'Study flashcards generation for document %s: %.1f seconds',
+                    document.id,
+                    time.perf_counter() - started_at
+                )
                 flashcards = parse_flashcards_response(raw_flashcards)
                 random.shuffle(flashcards)
                 if flashcards:
@@ -1376,44 +1837,130 @@ def document_study(request, document_id):
 
 
 @login_required(login_url='login')
+def document_ai_prepare_status(request, document_id, kind):
+    get_object_or_404(
+        Document,
+        id=document_id,
+        uploaded_by=request.user
+    )
+
+    return JsonResponse({
+        'status': 'disabled',
+        'ready': False,
+        'error': 'AI generation now runs directly from the submit request.',
+    }, status=410)
+
+
+@login_required(login_url='login')
 def exam_simulator(request, document_id):
     document = get_object_or_404(
         Document,
         id=document_id,
         uploaded_by=request.user
     )
-
-    questions = []
-    raw_exam = ''
+    session_key = f'exam_simulator_{document.id}'
+    raw_exam_session_key = f'exam_simulator_raw_{document.id}'
+    exam_result = None
+    submitted_items = None
+    mistakes = []
+    questions = request.session.get(session_key, [])
+    raw_exam = request.session.get(raw_exam_session_key, '')
     error_message = None
 
-    try:
-        if not consume_ai_request_quota(request.user):
-            raise AIError(ai_rate_limit_message())
+    if request.method == 'POST' and request.POST.get('action') == 'new_exam':
+        request_started_at = time.perf_counter()
+        request.session.pop(session_key, None)
+        request.session.pop(raw_exam_session_key, None)
 
-        text = extract_text_from_document(document.file.path)
-        if not text.strip():
-            error_message = 'Nuk u gjet tekst i lexueshem ne kete dokument.'
-        else:
-            raw_exam = generate_exam(text)
-            questions = parse_exam_response(raw_exam)
-            if not questions:
-                error_message = 'AI nuk arriti te gjeneroje simulim provimi nga ky dokument.'
+        try:
+            if not consume_ai_request_quota(request.user):
+                raise AIError(ai_rate_limit_message())
+
+            questions, raw_exam = generate_exam_for_document(document)
+            started_at = time.perf_counter()
+            request.session[session_key] = questions
+            request.session[raw_exam_session_key] = raw_exam
+            record_activity(request.user, 'quiz', document.title)
+            logger.info(
+                'Exam session/activity save for document %s: %.1f seconds',
+                document.id,
+                time.perf_counter() - started_at
+            )
+            logger.info(
+                'Exam total request for document %s: %.1f seconds',
+                document.id,
+                time.perf_counter() - request_started_at
+            )
+        except TextExtractionError as exc:
+            questions = []
+            raw_exam = ''
+            error_message = str(exc)
+        except AIError as exc:
+            questions = []
+            raw_exam = ''
+            error_message = str(exc)
+
+    elif request.method == 'POST':
+        request_started_at = time.perf_counter()
+        questions = request.session.get(session_key, questions)
+        submitted_items = []
+        score = 0
+
+        for index, item in enumerate(questions):
+            item_type = item.get('type', 'quiz')
+            submitted_item = {**item}
+
+            if item_type == 'flashcard':
+                user_answer = request.POST.get(f'flashcard_{index}', '').strip()
+                evaluation = evaluate_flashcard_answer(
+                    item.get('answer', ''),
+                    user_answer
+                )
+                is_correct = evaluation.get('score', 0) >= 70
+                submitted_item.update({
+                    'user_answer': user_answer,
+                    'evaluation': evaluation,
+                    'is_correct': is_correct,
+                })
             else:
-                record_activity(request.user, 'quiz', document.title)
-    except TextExtractionError as exc:
-        error_message = str(exc)
-    except AIError as exc:
-        error_message = str(exc)
+                selected = request.POST.get(f'question_{index}', '')
+                is_correct = selected == item.get('answer')
+                submitted_item.update({
+                    'selected': selected,
+                    'is_correct': is_correct,
+                })
+
+            if is_correct:
+                score += 1
+            else:
+                mistakes.append(submitted_item)
+
+            submitted_items.append(submitted_item)
+
+        total = len(questions)
+        percentage = round((score / total) * 100, 1) if total else 0
+        exam_result = {
+            'score': score,
+            'total': total,
+            'percentage': percentage,
+            'mistakes': mistakes,
+        }
+        logger.info(
+            'Exam submit total request for document %s: %.1f seconds',
+            document.id,
+            time.perf_counter() - request_started_at
+        )
 
     return render(
         request,
         'documents/exam_simulator.html',
         {
             'document': document,
-            'questions': questions,
+            'questions': submitted_items or questions,
             'raw_exam': raw_exam,
             'error_message': error_message,
+            'exam_result': exam_result,
+            'mistakes': mistakes,
         }
     )
 
@@ -1449,9 +1996,15 @@ def multi_document_chat(request):
                 if not relevant_text.strip():
                     error_message = 'Nuk u gjet tekst i lexueshem nga dokumentet e tua.'
                 else:
+                    started_at = time.perf_counter()
                     answer = ask_document_ai(
                         relevant_text,
                         question
+                    )
+                    logger.info(
+                        'Multi-document chat generation for user %s: %.1f seconds',
+                        request.user.id,
+                        time.perf_counter() - started_at
                     )
             except AIError as exc:
                 error_message = str(exc)
@@ -1577,7 +2130,13 @@ def multi_document_study(request):
                         if not consume_ai_request_quota(request.user):
                             raise AIError(ai_rate_limit_message())
 
+                        started_at = time.perf_counter()
                         answer = ask_document_ai(combined_text, question)
+                        logger.info(
+                            'Multi-document study chat for user %s: %.1f seconds',
+                            request.user.id,
+                            time.perf_counter() - started_at
+                        )
                         record_activity(
                             request.user,
                             'chat',
@@ -1587,12 +2146,22 @@ def multi_document_study(request):
                     if not consume_ai_request_quota(request.user):
                         raise AIError(ai_rate_limit_message())
 
+                    quiz_context = combine_document_chunks(
+                        selected_documents,
+                        chunk_count=3
+                    )
+                    started_at = time.perf_counter()
                     raw_quiz = generate_quiz(
-                        combined_text,
+                        quiz_context,
                         previous_questions=get_previous_quiz_questions(
                             request.user,
                             documents=selected_documents
                         )
+                    )
+                    logger.info(
+                        'Multi-document quiz generation for user %s: %.1f seconds',
+                        request.user.id,
+                        time.perf_counter() - started_at
                     )
                     questions = parse_quiz_response(raw_quiz)
                     random.shuffle(questions)
@@ -1609,7 +2178,17 @@ def multi_document_study(request):
                     if not consume_ai_request_quota(request.user):
                         raise AIError(ai_rate_limit_message())
 
-                    raw_flashcards = generate_flashcards(combined_text)
+                    flashcard_context = combine_document_chunks(
+                        selected_documents,
+                        chunk_count=5
+                    )
+                    started_at = time.perf_counter()
+                    raw_flashcards = generate_flashcards(flashcard_context)
+                    logger.info(
+                        'Multi-document flashcards generation for user %s: %.1f seconds',
+                        request.user.id,
+                        time.perf_counter() - started_at
+                    )
                     flashcards = parse_flashcards_response(raw_flashcards)
                     random.shuffle(flashcards)
                     request.session['multi_document_flashcards'] = flashcards
@@ -1654,99 +2233,105 @@ def document_quiz(request, document_id):
     )
 
     session_key = f'document_quiz_{document.id}'
+    raw_quiz_session_key = f'document_quiz_raw_{document.id}'
     questions = request.session.get(session_key)
     result = None
     error_message = None
 
     if request.method == 'POST':
+        request_started_at = time.perf_counter()
         action = request.POST.get('action')
 
         if action == 'new':
             request.session.pop(session_key, None)
+            request.session.pop(raw_quiz_session_key, None)
+
+            try:
+                if not consume_ai_request_quota(request.user):
+                    raise AIError(ai_rate_limit_message())
+
+                questions, raw_quiz = generate_quiz_for_document(
+                    document,
+                    request.user
+                )
+                started_at = time.perf_counter()
+                request.session[session_key] = questions
+                request.session[raw_quiz_session_key] = raw_quiz
+                record_activity(request.user, 'quiz', document.title)
+                logger.info(
+                    'Quiz session/activity save for document %s: %.1f seconds',
+                    document.id,
+                    time.perf_counter() - started_at
+                )
+                logger.info(
+                    'Quiz total request for document %s: %.1f seconds',
+                    document.id,
+                    time.perf_counter() - request_started_at
+                )
+            except TextExtractionError as exc:
+                questions = []
+                error_message = str(exc)
+            except AIError as exc:
+                questions = []
+                error_message = str(exc)
+
+        elif not questions:
             return redirect('document_quiz', document_id=document.id)
 
-        if not questions:
-            return redirect('document_quiz', document_id=document.id)
+        else:
+            score = 0
+            submitted_questions = []
+            mistakes = []
 
-        score = 0
-        submitted_questions = []
-        mistakes = []
+            for index, question in enumerate(questions):
+                selected = request.POST.get(f'question_{index}', '')
+                is_correct = selected == question['answer']
 
-        for index, question in enumerate(questions):
-            selected = request.POST.get(f'question_{index}', '')
-            is_correct = selected == question['answer']
+                if is_correct:
+                    score += 1
 
-            if is_correct:
-                score += 1
-
-            submitted_questions.append({
-                **question,
-                'selected': selected,
-                'is_correct': is_correct
-            })
-
-            if not is_correct:
-                mistakes.append({
-                    'number': index + 1,
-                    'question': question['question'],
-                    'selected': selected or 'Pa pergjigje',
-                    'answer': question['answer']
+                submitted_questions.append({
+                    **question,
+                    'selected': selected,
+                    'is_correct': is_correct
                 })
 
-        result = {
-            'score': score,
-            'total': len(questions),
-            'category': quiz_category(score, len(questions)),
-            'advice': quiz_study_advice(score, len(questions), mistakes),
-            'mistakes': mistakes
-        }
+                if not is_correct:
+                    mistakes.append({
+                        'number': index + 1,
+                        'question': question['question'],
+                        'selected': selected or 'Pa pergjigje',
+                        'answer': question['answer']
+                    })
 
-        QuizAttempt.objects.create(
-            document=document,
-            user=request.user,
-            score=score,
-            total=len(questions),
-            category=result['category'],
-            mistakes=mistakes
-        )
-        questions = submitted_questions
+            result = {
+                'score': score,
+                'total': len(questions),
+                'category': quiz_category(score, len(questions)),
+                'advice': quiz_study_advice(score, len(questions), mistakes),
+                'mistakes': mistakes
+            }
 
-    if request.method == 'GET' and not questions:
-        try:
-            if not consume_ai_request_quota(request.user):
-                raise AIError(ai_rate_limit_message())
-
-            text = extract_text_from_document(document.file.path)
-            if not text.strip():
-                error_message = 'Nuk u gjet tekst i lexueshem ne kete dokument.'
-                questions = []
-            else:
-                raw_quiz = generate_quiz(
-                    text,
-                    previous_questions=get_previous_quiz_questions(
-                        request.user,
-                        documents=[document]
-                    ),
-                    context_chunks=get_random_document_chunks(document)
-                )
-                questions = parse_quiz_response(raw_quiz)
-
-                if not questions:
-                    error_message = (
-                        'AI nuk arriti te gjeneroje nje quiz te vlefshem nga teksti i ketij dokumenti. '
-                        'Provo perseri ose ngarko nje dokument me tekst me te qarte.'
-                    )
-                    questions = []
-                else:
-                    record_activity(request.user, 'quiz', document.title)
-
-            request.session[session_key] = questions
-        except TextExtractionError as exc:
-            error_message = str(exc)
-            questions = []
-        except AIError as exc:
-            error_message = str(exc)
-            questions = []
+            started_at = time.perf_counter()
+            QuizAttempt.objects.create(
+                document=document,
+                user=request.user,
+                score=score,
+                total=len(questions),
+                category=result['category'],
+                mistakes=mistakes
+            )
+            logger.info(
+                'Quiz attempt DB save for document %s: %.1f seconds',
+                document.id,
+                time.perf_counter() - started_at
+            )
+            questions = submitted_questions
+            logger.info(
+                'Quiz submit total request for document %s: %.1f seconds',
+                document.id,
+                time.perf_counter() - request_started_at
+            )
 
     return render(
         request,
@@ -1755,7 +2340,7 @@ def document_quiz(request, document_id):
             'document': document,
             'questions': questions,
             'result': result,
-            'error_message': error_message
+            'error_message': error_message,
         }
     )
 
@@ -1769,85 +2354,98 @@ def document_flashcards(request, document_id):
     )
 
     session_key = f'document_flashcards_{document.id}'
+    raw_flashcards_session_key = f'document_flashcards_raw_{document.id}'
     flashcards = request.session.get(session_key)
     results = None
     error_message = None
 
     if request.method == 'POST':
+        request_started_at = time.perf_counter()
         action = request.POST.get('action')
 
         if action == 'new':
             request.session.pop(session_key, None)
-            return redirect('document_flashcards', document_id=document.id)
+            request.session.pop(raw_flashcards_session_key, None)
 
-        if not flashcards:
-            return redirect('document_flashcards', document_id=document.id)
+            try:
+                if not consume_ai_request_quota(request.user):
+                    raise AIError(ai_rate_limit_message())
 
-        results = []
-        total_score = 0
-
-        for index, flashcard in enumerate(flashcards):
-            user_answer = request.POST.get(f'answer_{index}', '').strip()
-            evaluation = evaluate_flashcard_answer(
-                flashcard['answer'],
-                user_answer
-            )
-            total_score += evaluation['score']
-            results.append({
-                **flashcard,
-                'user_answer': user_answer,
-                'evaluation': evaluation
-            })
-
-        average_score = round(total_score / len(flashcards), 1) if flashcards else 0
-        if average_score >= 70:
-            overall_label = 'Shume mire'
-        elif average_score >= 40:
-            overall_label = 'Mire, por ka vend per perseritje'
-        else:
-            overall_label = 'Duhet perseritur'
-
-        results = {
-            'cards': results,
-            'average_score': average_score,
-            'overall_label': overall_label
-        }
-        FlashcardAttempt.objects.create(
-            document=document,
-            user=request.user,
-            average_score=average_score,
-            category=overall_label,
-            cards=results['cards']
-        )
-
-    if request.method == 'GET' and not flashcards:
-        try:
-            if not consume_ai_request_quota(request.user):
-                raise AIError(ai_rate_limit_message())
-
-            text = extract_text_from_document(document.file.path)
-            if not text.strip():
-                error_message = 'Nuk u gjet tekst i lexueshem ne kete dokument.'
+                flashcards, raw_flashcards = generate_flashcards_for_document(
+                    document
+                )
+                started_at = time.perf_counter()
+                request.session[session_key] = flashcards
+                request.session[raw_flashcards_session_key] = raw_flashcards
+                record_activity(request.user, 'flashcards', document.title)
+                logger.info(
+                    'Flashcards session/activity save for document %s: %.1f seconds',
+                    document.id,
+                    time.perf_counter() - started_at
+                )
+                logger.info(
+                    'Flashcards total request for document %s: %.1f seconds',
+                    document.id,
+                    time.perf_counter() - request_started_at
+                )
+            except TextExtractionError as exc:
                 flashcards = []
+                error_message = str(exc)
+            except AIError as exc:
+                flashcards = []
+                error_message = str(exc)
+
+        elif not flashcards:
+            return redirect('document_flashcards', document_id=document.id)
+
+        else:
+            results = []
+            total_score = 0
+
+            for index, flashcard in enumerate(flashcards):
+                user_answer = request.POST.get(f'answer_{index}', '').strip()
+                evaluation = evaluate_flashcard_answer(
+                    flashcard['answer'],
+                    user_answer
+                )
+                total_score += evaluation['score']
+                results.append({
+                    **flashcard,
+                    'user_answer': user_answer,
+                    'evaluation': evaluation
+                })
+
+            average_score = round(total_score / len(flashcards), 1) if flashcards else 0
+            if average_score >= 70:
+                overall_label = 'Shume mire'
+            elif average_score >= 40:
+                overall_label = 'Mire, por ka vend per perseritje'
             else:
-                raw_flashcards = generate_flashcards(text)
-                flashcards = parse_flashcards_response(raw_flashcards)
-                random.shuffle(flashcards)
-                if not flashcards:
-                    error_message = (
-                        'AI nuk arriti te gjeneroje flashcards te vlefshme. '
-                        'Provo perseri.'
-                    )
-                    flashcards = []
-                else:
-                    record_activity(request.user, 'flashcards', document.title)
-            request.session[session_key] = flashcards
-        except TextExtractionError as exc:
-            error_message = str(exc)
-            flashcards = []
-        except AIError as exc:
-            error_message = str(exc)
-            flashcards = []
+                overall_label = 'Duhet perseritur'
+
+            results = {
+                'cards': results,
+                'average_score': average_score,
+                'overall_label': overall_label
+            }
+            started_at = time.perf_counter()
+            FlashcardAttempt.objects.create(
+                document=document,
+                user=request.user,
+                average_score=average_score,
+                category=overall_label,
+                cards=results['cards']
+            )
+            logger.info(
+                'Flashcard attempt DB save for document %s: %.1f seconds',
+                document.id,
+                time.perf_counter() - started_at
+            )
+            logger.info(
+                'Flashcards submit total request for document %s: %.1f seconds',
+                document.id,
+                time.perf_counter() - request_started_at
+            )
 
     return render(
         request,
@@ -1856,7 +2454,7 @@ def document_flashcards(request, document_id):
             'document': document,
             'flashcards': flashcards,
             'results': results,
-            'error_message': error_message
+            'error_message': error_message,
         }
     )
 
@@ -1974,7 +2572,7 @@ def document_detail(request, document_id):
 
     if show_extracted_text:
         try:
-            extracted_text = extract_text_from_document(document.file.path)
+            extracted_text = get_document_text(document)
             if not extracted_text:
                 error_message = 'Nuk u gjet tekst ne kete dokument.'
         except TextExtractionError as exc:

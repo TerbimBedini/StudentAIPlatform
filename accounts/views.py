@@ -5,13 +5,24 @@ from django.views.decorators.debug import sensitive_post_parameters
 from django.views.decorators.http import require_POST
 from django.shortcuts import render, redirect
 from .forms import RegisterForm
+from documents.exam_preparation import get_exam_prediction, get_exam_report
+from documents.learning_diagnosis import (
+    get_exam_readiness,
+    get_recommended_action,
+    get_recommended_document,
+    get_strong_topics,
+    get_weak_topics,
+)
 from documents.models import (
     Achievement,
     Activity,
     Document,
+    Notification,
     QuizAttempt,
     StudySession,
 )
+from documents.mentor import get_learning_coach_report
+from documents.notifications import create_notification, get_latest_notifications
 from documents.progress import (
     analyze_student_strengths,
     calculate_average_quiz_score,
@@ -25,6 +36,7 @@ from documents.progress import (
     get_next_study_action,
     get_quiz_accuracy,
 )
+from documents.recovery import get_recovery_plan, get_recovery_score
 
 
 def home(request):
@@ -88,6 +100,14 @@ def register_view(request):
 def dashboard(request):
     check_and_award_achievements(request.user)
 
+    if not Notification.objects.filter(user=request.user).exists():
+        create_notification(
+            request.user,
+            'Welcome to StudentAI',
+            'Your AI study coach is ready.',
+            Notification.TYPE_AI_RECOMMENDATION
+        )
+
     documents = Document.objects.filter(
         uploaded_by=request.user
     ).order_by('-uploaded_at')
@@ -127,6 +147,16 @@ def dashboard(request):
     completed_sessions_count = get_completed_sessions_count(request.user)
     flashcard_activity = get_flashcard_activity(request.user)
     knowledge_score = calculate_knowledge_score(request.user)
+    strong_topics = get_strong_topics(request.user)
+    weak_topics = get_weak_topics(request.user)
+    exam_readiness = get_exam_readiness(request.user)
+    recommended_document = get_recommended_document(request.user)
+    recommended_action = get_recommended_action(request.user)
+    recovery_plan = get_recovery_plan(request.user)
+    recovery_score = get_recovery_score(request.user)
+    predicted_exam_score = get_exam_prediction(request.user)
+    learning_coach = get_learning_coach_report(request.user)
+    latest_notifications = get_latest_notifications(request.user, 5)
 
     context = {
         'documents': documents,
@@ -159,6 +189,24 @@ def dashboard(request):
         'weak_areas': learning_diagnosis['weak_areas'],
         'learning_recommendation': learning_diagnosis['recommendation'],
         'next_study_action': get_next_study_action(request.user),
+        'strong_topics': strong_topics,
+        'weak_topics': weak_topics,
+        'exam_readiness': exam_readiness,
+        'recommended_document': recommended_document,
+        'recommended_action': recommended_action,
+        'recovery_plan': recovery_plan,
+        'recovery_score': recovery_score,
+        'predicted_exam_score': predicted_exam_score,
+        'learning_coach': learning_coach,
+        'today_recommendation': learning_coach['today_recommendation'],
+        'today_focus': learning_coach['today_focus'],
+        'weakest_topic': learning_coach['weakest_topic'],
+        'most_improved_topic': learning_coach['most_improved_topic'],
+        'exam_probability': learning_coach['exam_probability'],
+        'recommended_study_duration': learning_coach['recommended_study_duration'],
+        'daily_study_goal': learning_coach['daily_study_goal'],
+        'study_consistency': learning_coach['study_consistency'],
+        'latest_notifications': latest_notifications,
     }
 
     return render(
@@ -233,6 +281,17 @@ def study_plan(request):
 
 
 @login_required(login_url='login')
+def exam_preparation(request):
+    exam_report = get_exam_report(request.user)
+
+    return render(
+        request,
+        'accounts/exam_preparation.html',
+        exam_report
+    )
+
+
+@login_required(login_url='login')
 def leaderboard(request):
     User = get_user_model()
     user_ids = set(
@@ -253,6 +312,9 @@ def leaderboard(request):
             'rank': index,
             'user': user,
             'knowledge_score': calculate_knowledge_score(user),
+            'exam_readiness': get_exam_readiness(user),
+            'recovery_score': get_recovery_score(user),
+            'predicted_exam_score': get_exam_prediction(user),
         }
         for index, user in enumerate(users, start=1)
     ]

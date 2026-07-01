@@ -160,7 +160,7 @@
                     <div class="eyebrow mb-2">Exam Mode</div>
                     <h1 class="display-6 fw-bold mb-2">Exam Simulator</h1>
                     <p class="text-white-50 mb-1">{{ document.title }}</p>
-                    <p class="text-white-50 mb-0">10 mixed-difficulty questions generated from this document.</p>
+                    <p class="text-white-50 mb-0">Mixed exam: 4-5 quiz questions and 5-6 flashcard questions from this document.</p>
                 </div>
                 <div class="d-flex align-items-center gap-3 flex-wrap">
                     <div class="timer-panel">
@@ -171,6 +171,13 @@
                     <a href="{% url 'study_document' document.id %}" class="btn btn-light rounded-pill px-4 fw-bold">
                         <i class="bi bi-arrow-left me-1"></i> Back to Study Mode
                     </a>
+                    <form method="post" class="m-0 js-new-exam-form">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="new_exam">
+                        <button type="submit" class="btn btn-premium rounded-pill px-4 fw-bold js-new-exam-button">
+                            <i class="bi bi-shuffle me-1"></i> New Exam
+                        </button>
+                    </form>
                 </div>
             </div>
         </div>
@@ -185,42 +192,169 @@
     {% endif %}
 
     {% if questions %}
+        {% if exam_result %}
+            <section class="exam-card">
+                <div class="card-pad">
+                    <div class="d-flex justify-content-between align-items-center gap-3 flex-wrap">
+                        <div>
+                            <h2 class="h4 fw-bold mb-1">Exam Result</h2>
+                            <p class="muted mb-0">
+                                {{ exam_result.score }}/{{ exam_result.total }} correct - {{ exam_result.percentage }}%
+                            </p>
+                        </div>
+                        <form method="post" class="m-0 js-new-exam-form">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="new_exam">
+                            <button type="submit" class="btn btn-premium px-4 js-new-exam-button">
+                                Create New Exam
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </section>
+        {% endif %}
+
         <section class="exam-grid">
             <div class="question-list">
-                {% for question in questions %}
-                    <article class="question-card">
-                        <div class="card-pad">
-                            <h2 class="question-title">{{ forloop.counter }}. {{ question.question }}</h2>
-                            <div class="option-list">
-                                {% for key, option in question.options.items %}
-                                    <div class="option-row">
-                                        <strong>{{ key }}.</strong> {{ option }}
+                <form method="post" class="question-list">
+                    {% csrf_token %}
+                    {% for question in questions %}
+                        <article class="question-card">
+                            <div class="card-pad">
+                                <div class="d-flex justify-content-between gap-3 align-items-start mb-2">
+                                    <h2 class="question-title mb-0">{{ forloop.counter }}. {{ question.question }}</h2>
+                                    {% if question.type == 'flashcard' %}
+                                        <span class="badge bg-primary">Flashcard</span>
+                                    {% else %}
+                                        <span class="badge bg-info text-dark">Quiz</span>
+                                    {% endif %}
+                                </div>
+
+                                {% if question.type == 'flashcard' %}
+                                    <textarea
+                                        name="flashcard_{{ forloop.counter0 }}"
+                                        class="form-control"
+                                        rows="4"
+                                        {% if exam_result %}readonly{% endif %}
+                                        placeholder="Write your answer here"
+                                    >{{ question.user_answer }}</textarea>
+
+                                    {% if exam_result %}
+                                        <div class="answer-row mt-3">
+                                            <strong>Model answer:</strong>
+                                            <p class="muted mb-2">{{ question.correct_answer }}</p>
+                                            {% if question.evaluation %}
+                                                <strong>Feedback:</strong>
+                                                <p class="muted mb-0">{{ question.evaluation.feedback }}</p>
+                                            {% endif %}
+                                        </div>
+                                    {% endif %}
+                                {% else %}
+                                    <div class="option-list">
+                                        {% for key, option in question.options.items %}
+                                            <label class="option-row">
+                                                <input
+                                                    type="radio"
+                                                    name="question_{{ forloop.parentloop.counter0 }}"
+                                                    value="{{ key }}"
+                                                    class="me-2"
+                                                    {% if question.selected == key %}checked{% endif %}
+                                                    {% if exam_result %}disabled{% endif %}
+                                                >
+                                                <strong>{{ key }}.</strong> {{ option }}
+                                            </label>
+                                        {% endfor %}
                                     </div>
-                                {% endfor %}
+
+                                    {% if exam_result %}
+                                        <div class="answer-row mt-3">
+                                            <strong>Correct answer:</strong>
+                                            <p class="muted mb-1">{{ question.answer }}. {{ question.correct_answer }}</p>
+                                            <p class="muted mb-0">{{ question.explanation }}</p>
+                                        </div>
+                                    {% endif %}
+                                {% endif %}
                             </div>
-                        </div>
-                    </article>
-                {% endfor %}
+                        </article>
+                    {% endfor %}
+
+                    {% if not exam_result %}
+                        <button type="submit" class="btn btn-premium px-4 py-3">
+                            Submit Exam
+                        </button>
+                    {% endif %}
+                </form>
             </div>
 
             <aside class="exam-card answer-key">
                 <div class="card-pad">
-                    <h2 class="h5 fw-bold mb-2">Answer Key</h2>
-                    <p class="muted mb-3">Correct answers with short explanations.</p>
-                    <div class="d-grid gap-3">
-                        {% for question in questions %}
-                            <div class="answer-row">
-                                <div class="d-flex align-items-center gap-2 mb-2">
-                                    <span class="answer-badge">{{ question.answer }}</span>
-                                    <strong>Question {{ forloop.counter }}</strong>
-                                </div>
-                                <p class="muted mb-0">{{ question.explanation }}</p>
+                    {% if exam_result %}
+                        <h2 class="h5 fw-bold mb-2">Wrong Questions Review</h2>
+                        <p class="muted mb-3">Review these answers in the document before trying again.</p>
+                        {% if mistakes %}
+                            <div class="d-grid gap-3">
+                                {% for mistake in mistakes %}
+                                    <div class="answer-row">
+                                        <div class="d-flex align-items-center gap-2 mb-2">
+                                            <span class="answer-badge">{{ forloop.counter }}</span>
+                                            <strong>{{ mistake.type|default:"quiz"|title }}</strong>
+                                        </div>
+                                        <p class="fw-bold mb-2">{{ mistake.question }}</p>
+                                        <p class="muted mb-2">
+                                            <strong>Right answer:</strong> {{ mistake.correct_answer }}
+                                        </p>
+                                        {% if mistake.explanation %}
+                                            <p class="muted mb-2">
+                                                <strong>Why:</strong> {{ mistake.explanation }}
+                                            </p>
+                                        {% endif %}
+                                        <p class="muted mb-0">
+                                            <strong>Where to find it:</strong> {{ mistake.source_reference }}
+                                        </p>
+                                    </div>
+                                {% endfor %}
                             </div>
-                        {% endfor %}
-                    </div>
+                        {% else %}
+                            <div class="empty-state">No wrong questions. Great work.</div>
+                        {% endif %}
+                    {% else %}
+                        <h2 class="h5 fw-bold mb-2">Exam Structure</h2>
+                        <p class="muted mb-3">Complete the mixed exam and submit to see corrections.</p>
+                        <div class="d-grid gap-3">
+                            <div class="answer-row">
+                                <strong>Quiz questions</strong>
+                                <p class="muted mb-0">Multiple-choice questions with one correct option.</p>
+                            </div>
+                            <div class="answer-row">
+                                <strong>Flashcard questions</strong>
+                                <p class="muted mb-0">Open answers checked against the model answer.</p>
+                            </div>
+                        </div>
+                    {% endif %}
                 </div>
             </aside>
         </section>
+    {% elif not error_message %}
+        <section class="exam-card">
+            <div class="card-pad">
+                <div class="empty-state">
+                    Click "New Exam" to generate the first small exam section from document chunks.
+                </div>
+            </div>
+        </section>
     {% endif %}
 </div>
+
+<script>
+    document.querySelectorAll('.js-new-exam-form').forEach(function (form) {
+        form.addEventListener('submit', function () {
+            const button = form.querySelector('.js-new-exam-button');
+            if (!button) {
+                return;
+            }
+            button.disabled = true;
+            button.innerHTML = '<span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Generating...';
+        });
+    });
+</script>
 {% endblock %}

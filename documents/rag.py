@@ -79,6 +79,26 @@ def split_text(text, chunk_size=800, overlap=150):
     return chunks
 
 
+def get_sample_document_chunks(document, chunk_count=3):
+    text = get_document_text(document)
+    chunks = [
+        chunk.strip()
+        for chunk in split_text(text)
+        if chunk and chunk.strip()
+    ]
+
+    if not chunks:
+        return []
+
+    if len(chunks) <= chunk_count:
+        selected_chunks = chunks[:]
+    else:
+        selected_chunks = random.sample(chunks, chunk_count)
+
+    random.shuffle(selected_chunks)
+    return selected_chunks[:chunk_count]
+
+
 def _referenced_point_number(question):
     normalized_question = question.lower()
     word_numbers = {

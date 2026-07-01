@@ -90,3 +90,50 @@ class AuthenticationSecurityTests(TestCase):
             response,
             reverse('start_study_session', args=[document.id])
         )
+
+    def test_exam_preparation_handles_user_without_history(self):
+        User.objects.create_user(
+            username='exam_empty',
+            password='StrongPass123!'
+        )
+        self.client.login(
+            username='exam_empty',
+            password='StrongPass123!'
+        )
+
+        response = self.client.get(reverse('exam_preparation'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Exam Preparation Center')
+        self.assertContains(response, 'Predicted Exam Score')
+        self.assertContains(response, 'HIGH')
+        self.assertContains(response, 'Upload your first document')
+
+    def test_exam_preparation_shows_exam_simulator_action(self):
+        user = User.objects.create_user(
+            username='exam_ready_student',
+            password='StrongPass123!'
+        )
+        document = Document.objects.create(
+            title='Physics',
+            file='documents/physics.pdf',
+            uploaded_by=user,
+            summary='Motion and forces summary.'
+        )
+        QuizAttempt.objects.create(
+            document=document,
+            user=user,
+            score=8,
+            total=10
+        )
+        self.client.login(
+            username='exam_ready_student',
+            password='StrongPass123!'
+        )
+
+        response = self.client.get(reverse('exam_preparation'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Start Exam Simulator')
+        self.assertContains(response, reverse('exam_simulator', args=[document.id]))
+        self.assertContains(response, 'Physics')

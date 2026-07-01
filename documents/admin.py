@@ -5,6 +5,7 @@ from .models import (
     CommunityMessage,
     Document,
     LibraryDocument,
+    Notification,
     QuizAttempt,
     StudySession,
 )
@@ -132,6 +133,27 @@ class QuizAttemptAdmin(admin.ModelAdmin):
     search_fields = (
         'user__username',
         'document__title',
+    )
+
+
+@admin.register(Notification)
+class NotificationAdmin(admin.ModelAdmin):
+    list_display = (
+        'user',
+        'title',
+        'notification_type',
+        'is_read',
+        'created_at',
+    )
+    list_filter = (
+        'notification_type',
+        'is_read',
+        'created_at',
+    )
+    search_fields = (
+        'user__username',
+        'title',
+        'message',
     )
 
 
