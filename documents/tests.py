@@ -752,7 +752,10 @@ class DocumentTests(TestCase):
         )
         self.client.login(username='student', password='password123')
 
-        response = self.client.get(reverse('document_quiz', args=[document.id]))
+        response = self.client.post(
+            reverse('document_quiz', args=[document.id]),
+            {'action': 'new'}
+        )
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Submit Quiz')
@@ -761,21 +764,26 @@ class DocumentTests(TestCase):
         session = self.client.session
         questions = session[f'document_quiz_{document.id}']
 
+        answers = {
+            f'question_{index}': question['answer']
+            for index, question in enumerate(questions)
+        }
+        answers['action'] = 'submit'
         response = self.client.post(
             reverse('document_quiz', args=[document.id]),
-            {'action': 'submit', 'question_0': questions[0]['answer']}
+            answers
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, '1/1')
+        self.assertContains(response, '5/5')
         self.assertContains(response, 'Ekselent')
         self.assertContains(response, 'E sakte')
         self.assertTrue(
             QuizAttempt.objects.filter(
                 document=document,
                 user=user,
-                score=1,
-                total=1,
+                score=5,
+                total=5,
                 category='Ekselent'
             ).exists()
         )
@@ -802,7 +810,10 @@ class DocumentTests(TestCase):
         )
         self.client.login(username='student_wrong', password='password123')
 
-        self.client.get(reverse('document_quiz', args=[document.id]))
+        self.client.post(
+            reverse('document_quiz', args=[document.id]),
+            {'action': 'new'}
+        )
         session = self.client.session
         questions = session[f'document_quiz_{document.id}']
         wrong_answer = next(
@@ -816,7 +827,7 @@ class DocumentTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, '0/1')
+        self.assertContains(response, '0/5')
         self.assertContains(response, 'Dobet')
         self.assertContains(response, 'Gabim')
         self.assertContains(response, 'E sakte')
@@ -1169,7 +1180,10 @@ class DocumentTests(TestCase):
         )
         self.client.login(username='student2', password='password123')
 
-        response = self.client.get(reverse('document_quiz', args=[document.id]))
+        response = self.client.post(
+            reverse('document_quiz', args=[document.id]),
+            {'action': 'new'}
+        )
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'AI nuk u lidh dot me Ollama.')
@@ -1192,7 +1206,10 @@ class DocumentTests(TestCase):
         )
         self.client.login(username='flashcard_student', password='password123')
 
-        response = self.client.get(reverse('document_flashcards', args=[document.id]))
+        response = self.client.post(
+            reverse('document_flashcards', args=[document.id]),
+            {'action': 'new'}
+        )
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Flashcards AI')
@@ -1435,7 +1452,7 @@ class DocumentTests(TestCase):
         self.assertContains(response, 'Summary')
         self.assertContains(response, 'Quiz')
         self.assertContains(response, 'Flashcards')
-        self.assertContains(response, 'Chat AI')
+        self.assertContains(response, 'AI Tutor')
         self.assertContains(response, reverse('document_file', args=[document.id]))
 
     @patch('documents.views.generate_quiz')

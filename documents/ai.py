@@ -255,7 +255,15 @@ def _select_context(document_text, context_chunks=None, target_chars=1000):
     return select_quiz_source_text(document_text, target_chars=target_chars)
 
 
-def generate_quiz(document_text, previous_questions=None, context_chunks=None):
+def generate_quiz(
+    document_text,
+    previous_questions=None,
+    context_chunks=None,
+    difficulty=None,
+    quiz_style=None,
+    focus_topics=None,
+    strategy_instruction=''
+):
     selected_text = _select_context(document_text, context_chunks, target_chars=1000)
     previous_questions = previous_questions or []
     random.shuffle(previous_questions)
@@ -265,14 +273,28 @@ def generate_quiz(document_text, previous_questions=None, context_chunks=None):
         if str(question).strip()
     ) or 'No previous questions.'
 
+    difficulty = difficulty or random.choice(["easy", "medium", "hard"])
+    quiz_style = quiz_style or random.choice([
+        "exam-style",
+        "analytical",
+        "conceptual",
+        "practical"
+    ])
+    focus_text = ', '.join(focus_topics or []) or 'main document concepts'
+    strategy_instruction = strategy_instruction or (
+        'Create useful document-grounded questions for studying.'
+    )
+
     prompt = (
         'Krijo deri ne 5 pyetje quiz vetem nga konteksti. '
         'Pyet per kuptim, jo per fraza te shkeputura. '
         'Kthe vetem JSON valid pa markdown me formen: '
         '[{"question":"...","options":{"A":"...","B":"...","C":"...","D":"..."},"answer":"A"}]\n'
         f'Seed: {time.time_ns()}-{random.randint(1000, 999999)}\n'
-        f'Difficulty: {random.choice(["easy", "medium", "hard"])}\n'
-        f'Style: {random.choice(["exam-style", "analytical", "conceptual", "practical"])}\n'
+        f'Difficulty: {difficulty}\n'
+        f'Style: {quiz_style}\n'
+        f'Focus topics: {focus_text}\n'
+        f'Strategy: {strategy_instruction}\n'
         f'Avoid: {previous_question_text}\n'
         f'Context:\n{selected_text}'
     )
@@ -385,7 +407,7 @@ def generate_fast_document_quiz(document_text, max_questions=5):
     if not sentences:
         return ''
 
-    if len(sentences) >= max_questions:
+    if len(sentences) > max_questions:
         selected_sentences = random.sample(sentences, max_questions)
     else:
         selected_sentences = sentences[:]
