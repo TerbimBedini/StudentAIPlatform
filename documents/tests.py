@@ -39,6 +39,7 @@ from .learning_diagnosis import (
 )
 from .progress import analyze_student_strengths, get_next_study_action
 from .recovery import get_recovery_plan, get_recovery_score
+from .smart_flashcards import get_flashcard_strategy, normalize_flashcard_mode
 from .views import evaluate_flashcard_answer, parse_exam_response, parse_quiz_response
 
 
@@ -1131,6 +1132,32 @@ class DocumentTests(TestCase):
 
         self.assertIn('Pyetje:', flashcards)
         self.assertIn('Pergjigje:', flashcards)
+        self.assertEqual(flashcards.count('Pyetje:'), 5)
+
+    def test_adaptive_flashcard_strategy_uses_weak_performance(self):
+        user = User.objects.create_user(
+            username='adaptive_flash_student',
+            password='password123'
+        )
+        path = self.create_pdf(text='Probabiliteti mat pasigurine.')
+        document = Document.objects.create(
+            title='Probability',
+            file=path.name,
+            uploaded_by=user
+        )
+        QuizAttempt.objects.create(
+            document=document,
+            user=user,
+            score=1,
+            total=5
+        )
+
+        strategy = get_flashcard_strategy(user, document, 'adaptive')
+
+        self.assertEqual(strategy['requested_mode'], 'adaptive')
+        self.assertEqual(strategy['mode'], 'concepts')
+        self.assertIn('Probability', strategy['focus_topics'])
+        self.assertEqual(normalize_flashcard_mode('fill-in-the-blank'), 'fill_blank')
 
     @patch('documents.ai.call_ollama')
     def test_document_chat_returns_context_fallback_when_ollama_fails(self, mock_call_ollama):
@@ -1215,12 +1242,17 @@ class DocumentTests(TestCase):
         self.assertContains(response, 'Flashcards AI')
         self.assertContains(response, 'Cfare eshte AI?')
 
+        session = self.client.session
+        flashcards = session[f'document_flashcards_{document.id}']
+        self.assertEqual(len(flashcards), 5)
+        answers = {
+            f'answer_{index}': card['answer']
+            for index, card in enumerate(flashcards)
+        }
+        answers['action'] = 'submit'
         response = self.client.post(
             reverse('document_flashcards', args=[document.id]),
-            {
-                'action': 'submit',
-                'answer_0': 'AI eshte inteligjence artificiale'
-            }
+            answers
         )
 
         self.assertEqual(response.status_code, 200)

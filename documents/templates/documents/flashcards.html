@@ -197,9 +197,17 @@
                     <h2 class="h4 fw-bold mb-1">Document Flashcards</h2>
                     <p class="text-muted mb-0">Using cached text and document chunks to generate a concise flashcard pack.</p>
                 </div>
-                <form method="POST" class="m-0" id="new-flashcards-form">
+                <form method="POST" class="m-0 d-flex flex-wrap align-items-center gap-2" id="new-flashcards-form">
                     {% csrf_token %}
                     <input type="hidden" name="action" value="new">
+                    <select class="form-select form-select-sm" name="mode" style="width: 170px;">
+                        <option value="adaptive" {% if not flashcard_strategy or flashcard_strategy.requested_mode == 'adaptive' %}selected{% endif %}>Adaptive</option>
+                        <option value="definitions" {% if flashcard_strategy.requested_mode == 'definitions' %}selected{% endif %}>Definitions</option>
+                        <option value="concepts" {% if flashcard_strategy.requested_mode == 'concepts' %}selected{% endif %}>Concepts</option>
+                        <option value="true_false" {% if flashcard_strategy.requested_mode == 'true_false' %}selected{% endif %}>True/False</option>
+                        <option value="fill_blank" {% if flashcard_strategy.requested_mode == 'fill_blank' %}selected{% endif %}>Fill in blank</option>
+                        <option value="memory" {% if flashcard_strategy.requested_mode == 'memory' %}selected{% endif %}>Memory</option>
+                    </select>
                     <button class="btn btn-premium" type="submit" id="new-flashcards-button">
                         {% if flashcards %}
                             Generate another pack
@@ -209,6 +217,18 @@
                     </button>
                 </form>
             </div>
+
+            {% if flashcard_strategy %}
+                <div class="alert alert-light border rounded-4 mb-4">
+                    <strong>Flashcards 2.0:</strong>
+                    {{ flashcard_strategy.mode|title }}
+                    {% if flashcard_strategy.requested_mode == 'adaptive' %}
+                        adaptive mode
+                    {% endif %}
+                    · Focus:
+                    {{ flashcard_strategy.focus_topics|join:", " }}
+                </div>
+            {% endif %}
 
             <div class="legend-box mb-4">
                 <h3 class="h6 fw-bold">Legjenda e vleresimit</h3>

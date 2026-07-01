@@ -21,6 +21,7 @@ from .ai import (
     AIError,
     ask_document_ai,
     generate_fast_document_quiz,
+    generate_fast_flashcards,
     generate_flashcards,
     generate_mixed_exam,
     generate_quiz,
@@ -43,6 +44,10 @@ from .rag import (
     search_multiple_documents,
 )
 from .smart_quiz import get_quiz_strategy, normalize_quiz_difficulty
+from .smart_flashcards import (
+    get_flashcard_strategy,
+    normalize_flashcard_mode,
+)
 from .tutor import generate_tutor_turn
 from .utils import TextExtractionError, get_document_text
 
@@ -225,15 +230,21 @@ def generate_quiz_for_document(document, user, difficulty='adaptive'):
     return questions, raw_quiz, strategy
 
 
-def generate_flashcards_for_document(document):
+def generate_flashcards_for_document(document, user, mode='adaptive'):
     total_started_at = time.perf_counter()
+    strategy = get_flashcard_strategy(user, document, mode)
     context, _chunks, _text = get_generation_context(
         document,
         chunk_count=3,
         fallback_chars=2200
     )
     started_at = time.perf_counter()
-    raw_flashcards = generate_flashcards(context)
+    raw_flashcards = generate_flashcards(
+        context,
+        mode=strategy['mode'],
+        focus_topics=strategy['focus_topics'],
+        strategy_instruction=strategy['instruction']
+    )
     logger.info(
         'Direct flashcards generation for document %s: %.1f seconds',
         document.id,
@@ -246,7 +257,22 @@ def generate_flashcards_for_document(document):
         document.id,
         time.perf_counter() - started_at
     )
+    if len(flashcards) < 5:
+        fallback_raw = generate_fast_flashcards(
+            context,
+            max_cards=5,
+            mode=strategy['mode']
+        )
+        fallback_cards = parse_flashcards_response(fallback_raw)
+        for fallback_card in fallback_cards:
+            flashcards.append(fallback_card)
+            if len(flashcards) >= 5:
+                break
+        while flashcards and len(flashcards) < 5:
+            flashcards.append(random.choice(flashcards).copy())
+
     random.shuffle(flashcards)
+    flashcards = flashcards[:5]
     if not flashcards:
         raise AIError('AI nuk arriti te gjeneroje flashcards te vlefshme.')
     logger.info(
@@ -254,7 +280,7 @@ def generate_flashcards_for_document(document):
         document.id,
         time.perf_counter() - total_started_at
     )
-    return flashcards, raw_flashcards
+    return flashcards, raw_flashcards, strategy
 
 
 def generate_exam_for_document(document):
@@ -1589,6 +1615,7 @@ def document_study(request, document_id):
     quiz_strategy_session_key = f'study_quiz_strategy_{document.id}'
     flashcard_session_key = f'study_flashcards_{document.id}'
     raw_flashcard_session_key = f'study_raw_flashcards_{document.id}'
+    flashcard_strategy_session_key = f'study_flashcard_strategy_{document.id}'
     chat_session_key = f'study_chat_{document.id}'
     tutor_session_key = f'study_tutor_state_{document.id}'
     active_tab = request.POST.get('active_tab', 'document')
@@ -1605,6 +1632,7 @@ def document_study(request, document_id):
     quiz_result = None
     flashcards = request.session.get(flashcard_session_key)
     raw_flashcards = request.session.get(raw_flashcard_session_key)
+    flashcard_strategy = request.session.get(flashcard_strategy_session_key)
     flashcard_results = None
     error_message = None
     active_study_session = StudySession.objects.filter(
@@ -1760,24 +1788,29 @@ def document_study(request, document_id):
             active_tab = 'flashcards'
             request.session.pop(flashcard_session_key, None)
             request.session.pop(raw_flashcard_session_key, None)
+            request.session.pop(flashcard_strategy_session_key, None)
             try:
                 if not consume_ai_request_quota(request.user):
                     raise AIError(ai_rate_limit_message())
 
-                context_chunks = get_sample_document_chunks(document, chunk_count=3)
-                text = '\n\n---\n\n'.join(context_chunks) or get_document_text(document)[:2200]
+                requested_mode = normalize_flashcard_mode(
+                    request.POST.get('mode')
+                )
                 started_at = time.perf_counter()
-                raw_flashcards = generate_flashcards(text)
+                flashcards, raw_flashcards, flashcard_strategy = generate_flashcards_for_document(
+                    document,
+                    request.user,
+                    requested_mode
+                )
                 logger.info(
                     'Study flashcards generation for document %s: %.1f seconds',
                     document.id,
                     time.perf_counter() - started_at
                 )
-                flashcards = parse_flashcards_response(raw_flashcards)
-                random.shuffle(flashcards)
                 if flashcards:
                     request.session[flashcard_session_key] = flashcards
                     request.session[raw_flashcard_session_key] = raw_flashcards
+                    request.session[flashcard_strategy_session_key] = flashcard_strategy
                     record_activity(request.user, 'flashcards', document.title)
                 else:
                     error_message = 'AI nuk arriti te gjeneroje flashcards te vlefshme.'
@@ -1853,6 +1886,7 @@ def document_study(request, document_id):
             'quiz_result': quiz_result,
             'flashcards': raw_flashcards or flashcards,
             'flashcard_items': flashcards,
+            'flashcard_strategy': flashcard_strategy,
             'flashcard_results': flashcard_results,
             'error_message': error_message
         }
@@ -2387,7 +2421,9 @@ def document_flashcards(request, document_id):
 
     session_key = f'document_flashcards_{document.id}'
     raw_flashcards_session_key = f'document_flashcards_raw_{document.id}'
+    flashcard_strategy_session_key = f'document_flashcards_strategy_{document.id}'
     flashcards = request.session.get(session_key)
+    flashcard_strategy = request.session.get(flashcard_strategy_session_key)
     results = None
     error_message = None
 
@@ -2398,17 +2434,24 @@ def document_flashcards(request, document_id):
         if action == 'new':
             request.session.pop(session_key, None)
             request.session.pop(raw_flashcards_session_key, None)
+            request.session.pop(flashcard_strategy_session_key, None)
 
             try:
                 if not consume_ai_request_quota(request.user):
                     raise AIError(ai_rate_limit_message())
 
-                flashcards, raw_flashcards = generate_flashcards_for_document(
-                    document
+                requested_mode = normalize_flashcard_mode(
+                    request.POST.get('mode')
+                )
+                flashcards, raw_flashcards, flashcard_strategy = generate_flashcards_for_document(
+                    document,
+                    request.user,
+                    requested_mode
                 )
                 started_at = time.perf_counter()
                 request.session[session_key] = flashcards
                 request.session[raw_flashcards_session_key] = raw_flashcards
+                request.session[flashcard_strategy_session_key] = flashcard_strategy
                 record_activity(request.user, 'flashcards', document.title)
                 logger.info(
                     'Flashcards session/activity save for document %s: %.1f seconds',
@@ -2486,6 +2529,7 @@ def document_flashcards(request, document_id):
             'document': document,
             'flashcards': flashcards,
             'results': results,
+            'flashcard_strategy': flashcard_strategy,
             'error_message': error_message,
         }
     )

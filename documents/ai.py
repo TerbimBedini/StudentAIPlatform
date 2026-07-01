@@ -434,7 +434,7 @@ def generate_fast_document_quiz(document_text, max_questions=5):
     return '\n'.join(quiz_lines)
 
 
-def generate_fast_flashcards(document_text, max_cards=3):
+def generate_fast_flashcards(document_text, max_cards=5, mode='concepts'):
     sentences = [
         sentence.strip()
         for sentence in re.split(r'(?<=[.!?])\s+|\n+', document_text)
@@ -446,16 +446,32 @@ def generate_fast_flashcards(document_text, max_cards=3):
         if cleaned:
             sentences = [cleaned[:240]]
 
-    selected_sentences = random.sample(sentences, min(max_cards, len(sentences))) if sentences else []
+    if len(sentences) > max_cards:
+        selected_sentences = random.sample(sentences, max_cards)
+    else:
+        selected_sentences = sentences[:]
+        while sentences and len(selected_sentences) < max_cards:
+            selected_sentences.append(random.choice(sentences))
+
+    random.shuffle(selected_sentences)
     flashcard_lines = []
 
     for index, sentence in enumerate(selected_sentences, start=1):
         short_sentence = sentence[:240].strip()
-        question = random.choice([
-            'Cila eshte ideja kryesore qe duhet mbajtur mend nga kjo pjese?',
-            'Si do ta shpjegoje kete koncept me fjalet e tua?',
-            'Cfare kuptimi ka kjo pjese ne materialin e dokumentit?',
-        ])
+        if mode == 'definitions':
+            question = 'Cili eshte perkufizimi ose kuptimi kryesor ne kete pjese?'
+        elif mode == 'true_false':
+            question = 'True or False: Kjo ide mbeshtetet nga dokumenti?'
+        elif mode == 'fill_blank':
+            question = 'Ploteso boshllikun me idene kryesore nga kjo pjese.'
+        elif mode == 'memory':
+            question = 'Cfare duhet te mbash mend nga kjo pjese e dokumentit?'
+        else:
+            question = random.choice([
+                'Cila eshte ideja kryesore qe duhet mbajtur mend nga kjo pjese?',
+                'Si do ta shpjegoje kete koncept me fjalet e tua?',
+                'Cfare kuptimi ka kjo pjese ne materialin e dokumentit?',
+            ])
         flashcard_lines.extend([
             f'{index}. Pyetje: {question}',
             f'   Pergjigje: {short_sentence}',
@@ -465,23 +481,34 @@ def generate_fast_flashcards(document_text, max_cards=3):
     return '\n'.join(flashcard_lines)
 
 
-def generate_flashcards(document_text):
-    focus = random.choice([
+def generate_flashcards(
+    document_text,
+    mode='concepts',
+    focus_topics=None,
+    strategy_instruction=''
+):
+    focus = ', '.join(focus_topics or []) or random.choice([
         'konceptet kryesore',
         'perkufizimet',
         'shembujt dhe zbatimet',
         'shkaqet dhe pasojat',
     ])
+    strategy_instruction = strategy_instruction or (
+        'Create concise document-grounded flashcards.'
+    )
     selected_text = select_quiz_source_text(
         document_text,
         target_chars=1000,
         window_chars=550
     )
     prompt = f'''
-Krijo 3 flashcards vetem nga teksti. Fokus: {focus}.
+Krijo deri ne 5 flashcards vetem nga teksti.
 Kthe vetem JSON valid pa markdown.
 Schema:
 [{{"question":"...","answer":"..."}}]
+Mode: {mode}
+Focus: {focus}
+Strategy: {strategy_instruction}
 Teksti:
 {selected_text}
 '''
@@ -490,9 +517,9 @@ Teksti:
             'Flashcards',
             prompt,
             temperature=0.6,
-            num_predict=200,
-            timeout=30,
+            num_predict=300,
+            timeout=20,
             top_p=0.86
         )
     except AIError:
-        return generate_fast_flashcards(selected_text, max_cards=3)
+        return generate_fast_flashcards(selected_text, max_cards=5, mode=mode)
