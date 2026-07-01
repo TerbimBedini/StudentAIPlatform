@@ -943,7 +943,10 @@ class DocumentTests(TestCase):
         )
         self.client.login(username='exam_student', password='password123')
 
-        response = self.client.get(reverse('exam_simulator', args=[document.id]))
+        response = self.client.post(
+            reverse('exam_simulator', args=[document.id]),
+            {'action': 'new_exam'}
+        )
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Exam Simulator')
@@ -983,7 +986,13 @@ class DocumentTests(TestCase):
             uploaded_by=user
         )
         self.client.login(username='exam_submit_student', password='password123')
-        self.client.get(reverse('exam_simulator', args=[document.id]))
+        generate_response = self.client.post(
+            reverse('exam_simulator', args=[document.id]),
+            {'action': 'new_exam'}
+        )
+
+        self.assertEqual(generate_response.status_code, 200)
+        self.assertContains(generate_response, 'Cfare permendet ne material?')
 
         response = self.client.post(
             reverse('exam_simulator', args=[document.id]),
@@ -1000,7 +1009,7 @@ class DocumentTests(TestCase):
         self.assertContains(response, 'Where to find it')
 
     @patch('documents.views.generate_mixed_exam')
-    def test_exam_simulator_new_exam_action_redirects(
+    def test_exam_simulator_new_exam_action_renders_exam_page(
         self,
         mock_generate_mixed_exam
     ):
@@ -1035,10 +1044,11 @@ class DocumentTests(TestCase):
             {'action': 'new_exam'}
         )
 
-        self.assertRedirects(
-            response,
-            reverse('exam_simulator', args=[document.id])
-        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Exam Simulator')
+        self.assertContains(response, 'New Exam')
+        self.assertContains(response, 'Cfare permendet ne material?')
+        self.assertContains(response, 'Submit Exam')
 
     def test_exam_simulator_blocks_other_users_document(self):
         owner = User.objects.create_user(
