@@ -42,6 +42,8 @@ from .rag import (
     search_document_chunks,
     search_multiple_documents,
 )
+from .smart_quiz import get_quiz_strategy, normalize_quiz_difficulty
+from .tutor import generate_tutor_turn
 from .utils import TextExtractionError, get_document_text
 
 
@@ -157,8 +159,9 @@ def get_generation_context(document, chunk_count, fallback_chars):
     return context or text[:fallback_chars], chunks, text
 
 
-def generate_quiz_for_document(document, user):
+def generate_quiz_for_document(document, user, difficulty='adaptive'):
     total_started_at = time.perf_counter()
+    strategy = get_quiz_strategy(user, document, difficulty)
     context, chunks, _text = get_generation_context(
         document,
         chunk_count=3,
@@ -171,7 +174,10 @@ def generate_quiz_for_document(document, user):
             user,
             documents=[document]
         ),
-        context_chunks=chunks
+        context_chunks=chunks,
+        difficulty=strategy['difficulty'],
+        focus_topics=strategy['focus_topics'],
+        strategy_instruction=strategy['instruction']
     )
     logger.info(
         'Direct quiz generation for document %s: %.1f seconds',
@@ -216,7 +222,7 @@ def generate_quiz_for_document(document, user):
         document.id,
         time.perf_counter() - total_started_at
     )
-    return questions, raw_quiz
+    return questions, raw_quiz, strategy
 
 
 def generate_flashcards_for_document(document):
@@ -1580,18 +1586,22 @@ def document_study(request, document_id):
 
     quiz_session_key = f'study_quiz_{document.id}'
     raw_quiz_session_key = f'study_raw_quiz_{document.id}'
+    quiz_strategy_session_key = f'study_quiz_strategy_{document.id}'
     flashcard_session_key = f'study_flashcards_{document.id}'
     raw_flashcard_session_key = f'study_raw_flashcards_{document.id}'
     chat_session_key = f'study_chat_{document.id}'
+    tutor_session_key = f'study_tutor_state_{document.id}'
     active_tab = request.POST.get('active_tab', 'document')
     file_extension = document.file.name.rsplit('.', 1)[-1].lower()
 
     chat_messages = request.session.get(chat_session_key, [])
+    tutor_state = request.session.get(tutor_session_key, {})
     latest_chat = chat_messages[-1] if chat_messages else {}
     chat_question = ''
     chat_answer = latest_chat.get('answer')
     questions = request.session.get(quiz_session_key)
     quiz = request.session.get(raw_quiz_session_key)
+    quiz_strategy = request.session.get(quiz_strategy_session_key)
     quiz_result = None
     flashcards = request.session.get(flashcard_session_key)
     raw_flashcards = request.session.get(raw_flashcard_session_key)
@@ -1607,7 +1617,15 @@ def document_study(request, document_id):
         request_started_at = time.perf_counter()
         action = request.POST.get('action')
 
-        if action in ('chat', 'ask_ai'):
+        if action == 'reset_tutor':
+            active_tab = 'chat'
+            request.session.pop(chat_session_key, None)
+            request.session.pop(tutor_session_key, None)
+            chat_messages = []
+            tutor_state = {}
+            chat_answer = None
+
+        elif action in ('chat', 'ask_ai'):
             active_tab = 'chat'
             chat_question = request.POST.get('question', '').strip()
             if not chat_question:
@@ -1629,9 +1647,13 @@ def document_study(request, document_id):
                         )
 
                     started_at = time.perf_counter()
-                    chat_answer = ask_document_ai(relevant_text, chat_question)
+                    chat_answer, tutor_state = generate_tutor_turn(
+                        relevant_text,
+                        chat_question,
+                        tutor_state
+                    )
                     logger.info(
-                        'Study AI Chat for document %s: %.1f seconds',
+                        'Study AI Tutor for document %s: %.1f seconds',
                         document.id,
                         time.perf_counter() - started_at
                     )
@@ -1640,6 +1662,7 @@ def document_study(request, document_id):
                         'answer': chat_answer
                     })
                     request.session[chat_session_key] = chat_messages
+                    request.session[tutor_session_key] = tutor_state
                     record_activity(request.user, 'chat', document.title)
                     chat_question = ''
                 except TextExtractionError as exc:
@@ -1651,20 +1674,19 @@ def document_study(request, document_id):
             active_tab = 'quiz'
             request.session.pop(quiz_session_key, None)
             request.session.pop(raw_quiz_session_key, None)
+            request.session.pop(quiz_strategy_session_key, None)
             try:
                 if not consume_ai_request_quota(request.user):
                     raise AIError(ai_rate_limit_message())
 
-                context_chunks = get_sample_document_chunks(document, chunk_count=3)
-                text = '\n\n---\n\n'.join(context_chunks) or get_document_text(document)[:1600]
+                requested_difficulty = normalize_quiz_difficulty(
+                    request.POST.get('difficulty')
+                )
                 started_at = time.perf_counter()
-                raw_quiz = generate_quiz(
-                    text,
-                    previous_questions=get_previous_quiz_questions(
-                        request.user,
-                        documents=[document]
-                    ),
-                    context_chunks=context_chunks
+                questions, raw_quiz, quiz_strategy = generate_quiz_for_document(
+                    document,
+                    request.user,
+                    requested_difficulty
                 )
                 logger.info(
                     'Study quiz generation for document %s: %.1f seconds',
@@ -1672,11 +1694,10 @@ def document_study(request, document_id):
                     time.perf_counter() - started_at
                 )
                 quiz = raw_quiz
-                questions = parse_quiz_response(raw_quiz)
-                random.shuffle(questions)
                 if questions:
                     request.session[quiz_session_key] = questions
                     request.session[raw_quiz_session_key] = raw_quiz
+                    request.session[quiz_strategy_session_key] = quiz_strategy
                     record_activity(request.user, 'quiz', document.title)
                 else:
                     error_message = 'AI nuk arriti te gjeneroje quiz te vlefshem.'
@@ -1824,8 +1845,10 @@ def document_study(request, document_id):
             'question': chat_question,
             'ai_answer': chat_answer,
             'chat_messages': chat_messages,
+            'tutor_state': tutor_state,
             'active_study_session': active_study_session,
             'quiz': quiz,
+            'quiz_strategy': quiz_strategy,
             'questions': questions,
             'quiz_result': quiz_result,
             'flashcards': raw_flashcards or flashcards,
@@ -2234,7 +2257,9 @@ def document_quiz(request, document_id):
 
     session_key = f'document_quiz_{document.id}'
     raw_quiz_session_key = f'document_quiz_raw_{document.id}'
+    quiz_strategy_session_key = f'document_quiz_strategy_{document.id}'
     questions = request.session.get(session_key)
+    quiz_strategy = request.session.get(quiz_strategy_session_key)
     result = None
     error_message = None
 
@@ -2245,18 +2270,24 @@ def document_quiz(request, document_id):
         if action == 'new':
             request.session.pop(session_key, None)
             request.session.pop(raw_quiz_session_key, None)
+            request.session.pop(quiz_strategy_session_key, None)
 
             try:
                 if not consume_ai_request_quota(request.user):
                     raise AIError(ai_rate_limit_message())
 
-                questions, raw_quiz = generate_quiz_for_document(
+                requested_difficulty = normalize_quiz_difficulty(
+                    request.POST.get('difficulty')
+                )
+                questions, raw_quiz, quiz_strategy = generate_quiz_for_document(
                     document,
-                    request.user
+                    request.user,
+                    requested_difficulty
                 )
                 started_at = time.perf_counter()
                 request.session[session_key] = questions
                 request.session[raw_quiz_session_key] = raw_quiz
+                request.session[quiz_strategy_session_key] = quiz_strategy
                 record_activity(request.user, 'quiz', document.title)
                 logger.info(
                     'Quiz session/activity save for document %s: %.1f seconds',
@@ -2340,6 +2371,7 @@ def document_quiz(request, document_id):
             'document': document,
             'questions': questions,
             'result': result,
+            'quiz_strategy': quiz_strategy,
             'error_message': error_message,
         }
     )

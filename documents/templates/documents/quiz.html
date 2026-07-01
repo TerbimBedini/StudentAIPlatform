@@ -210,9 +210,15 @@
                     <h2 class="h4 fw-bold mb-1">Document Quiz</h2>
                     <p class="text-muted mb-0">Using cached text, searching document chunks, then generating a small quiz pack.</p>
                 </div>
-                <form method="POST" class="m-0" id="new-quiz-form">
+                <form method="POST" class="m-0 d-flex flex-wrap align-items-center gap-2" id="new-quiz-form">
                     {% csrf_token %}
                     <input type="hidden" name="action" value="new">
+                    <select class="form-select form-select-sm" name="difficulty" style="width: 150px;">
+                        <option value="adaptive" {% if not quiz_strategy or quiz_strategy.requested_difficulty == 'adaptive' %}selected{% endif %}>Adaptive</option>
+                        <option value="easy" {% if quiz_strategy.requested_difficulty == 'easy' %}selected{% endif %}>Easy</option>
+                        <option value="medium" {% if quiz_strategy.requested_difficulty == 'medium' %}selected{% endif %}>Medium</option>
+                        <option value="hard" {% if quiz_strategy.requested_difficulty == 'hard' %}selected{% endif %}>Hard</option>
+                    </select>
                     <button class="btn btn-premium" type="submit" id="new-quiz-button">
                         {% if questions %}
                             Generate another pack
@@ -222,6 +228,18 @@
                     </button>
                 </form>
             </div>
+
+            {% if quiz_strategy %}
+                <div class="alert alert-light border rounded-4 mb-4">
+                    <strong>Smart Quiz:</strong>
+                    {{ quiz_strategy.difficulty|title }}
+                    {% if quiz_strategy.requested_difficulty == 'adaptive' %}
+                        adaptive mode
+                    {% endif %}
+                    · Focus:
+                    {{ quiz_strategy.focus_topics|join:", " }}
+                </div>
+            {% endif %}
 
             {% if error_message %}
                 <div class="alert alert-warning rounded-4">

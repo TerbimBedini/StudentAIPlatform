@@ -736,8 +736,8 @@
                 <div class="section-heading">
                     <span class="section-icon">AI</span>
                     <div>
-                        <h2 class="section-title">Chat AI</h2>
-                        <p class="section-subtitle">Ask questions based on this document</p>
+                        <h2 class="section-title">AI Tutor</h2>
+                        <p class="section-subtitle">Learn from this document step by step</p>
                     </div>
                 </div>
 
@@ -771,7 +771,7 @@
                     {% else %}
                         <div class="chat-thread">
                             <div class="empty-state">
-                                Ask a question to start studying with AI.
+                                Ask a question to start a tutor session.
                             </div>
                         </div>
                     {% endif %}
@@ -785,14 +785,23 @@
                                 name="question"
                                 class="form-control chat-input"
                                 rows="4"
-                                placeholder="Ask AI about this document..."
+                                placeholder="Ask a topic, then answer the tutor's follow-up question..."
                             ></textarea>
 
                             <button class="btn btn-premium w-100 mt-2" type="submit">
-                                Ask AI
+                                Ask Tutor
                             </button>
                         </div>
                     </form>
+                    {% if chat_messages %}
+                        <form method="POST" data-normal-submit="true" class="mt-2">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="reset_tutor">
+                            <button class="btn btn-soft w-100" type="submit">
+                                New Tutor Topic
+                            </button>
+                        </form>
+                    {% endif %}
                 </div>
             </div>
         </aside>
