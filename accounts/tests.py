@@ -3,8 +3,15 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
+from documents.achievements import check_and_award_achievements, get_achievement_progress
 from documents.analytics import get_dashboard_analytics
-from documents.models import Document, FlashcardAttempt, QuizAttempt, StudySession
+from documents.models import (
+    Achievement,
+    Document,
+    FlashcardAttempt,
+    QuizAttempt,
+    StudySession,
+)
 
 
 class AuthenticationSecurityTests(TestCase):
@@ -236,3 +243,102 @@ class AuthenticationSecurityTests(TestCase):
         self.assertContains(response, 'Flashcard Success')
         self.assertContains(response, 'Probability - 40.0%')
         self.assertContains(response, 'Algorithms - 100.0%')
+
+    def test_first_upload_achievement_is_awarded(self):
+        user = User.objects.create_user(
+            username='achievement_upload',
+            password='StrongPass123!'
+        )
+        Document.objects.create(
+            title='First Notes',
+            file='documents/first.pdf',
+            uploaded_by=user
+        )
+
+        awarded = check_and_award_achievements(user)
+
+        self.assertTrue(any(item.badge_type == 'first_upload' for item in awarded))
+        self.assertTrue(
+            Achievement.objects.filter(
+                user=user,
+                badge_type='first_upload'
+            ).exists()
+        )
+
+    def test_first_quiz_and_perfect_quiz_achievements_are_awarded(self):
+        user = User.objects.create_user(
+            username='achievement_quiz',
+            password='StrongPass123!'
+        )
+        document = Document.objects.create(
+            title='Quiz Notes',
+            file='documents/quiz.pdf',
+            uploaded_by=user
+        )
+        QuizAttempt.objects.create(
+            document=document,
+            user=user,
+            score=5,
+            total=5
+        )
+
+        check_and_award_achievements(user)
+
+        self.assertTrue(
+            Achievement.objects.filter(
+                user=user,
+                badge_type='first_quiz'
+            ).exists()
+        )
+        self.assertTrue(
+            Achievement.objects.filter(
+                user=user,
+                badge_type='perfect_quiz'
+            ).exists()
+        )
+
+    def test_achievements_are_not_duplicated(self):
+        user = User.objects.create_user(
+            username='achievement_no_duplicates',
+            password='StrongPass123!'
+        )
+        Document.objects.create(
+            title='Duplicate Notes',
+            file='documents/duplicate.pdf',
+            uploaded_by=user
+        )
+
+        check_and_award_achievements(user)
+        check_and_award_achievements(user)
+
+        self.assertEqual(
+            Achievement.objects.filter(
+                user=user,
+                badge_type='first_upload'
+            ).count(),
+            1
+        )
+
+    def test_dashboard_renders_achievement_progress(self):
+        user = User.objects.create_user(
+            username='achievement_dashboard',
+            password='StrongPass123!'
+        )
+        Document.objects.create(
+            title='Dashboard Badge Notes',
+            file='documents/dashboard-badge.pdf',
+            uploaded_by=user
+        )
+        self.client.login(
+            username='achievement_dashboard',
+            password='StrongPass123!'
+        )
+
+        response = self.client.get(reverse('dashboard'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Achievements')
+        self.assertContains(response, 'Achievement Progress')
+        self.assertContains(response, 'First Upload')
+        self.assertContains(response, 'Earned')
+        self.assertTrue(get_achievement_progress(user))

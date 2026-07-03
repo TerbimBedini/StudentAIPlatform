@@ -1,6 +1,6 @@
 from django.apps import apps
 
-from .models import Achievement, Document, QuizAttempt
+from .models import Document, QuizAttempt
 
 
 def _get_model(model_name):
@@ -264,64 +264,6 @@ def get_next_study_action(user):
 
 
 def check_and_award_achievements(user):
-    average_quiz_score = calculate_average_quiz_score(user)
-    knowledge_score = calculate_knowledge_score(user)
+    from .achievements import check_and_award_achievements as award_achievements
 
-    badge_definitions = [
-        {
-            'badge_type': Achievement.BADGE_FIRST_UPLOAD,
-            'title': 'First Upload',
-            'description': 'Uploaded your first study document.',
-            'earned': Document.objects.filter(uploaded_by=user).exists(),
-        },
-        {
-            'badge_type': Achievement.BADGE_FIRST_QUIZ,
-            'title': 'First Quiz',
-            'description': 'Completed your first AI-generated quiz.',
-            'earned': QuizAttempt.objects.filter(user=user).exists(),
-        },
-        {
-            'badge_type': Achievement.BADGE_QUIZ_MASTER,
-            'title': 'Quiz Master',
-            'description': 'Reached at least 85% average quiz accuracy.',
-            'earned': average_quiz_score >= 85,
-        },
-        {
-            'badge_type': Achievement.BADGE_KNOWLEDGE_100,
-            'title': 'Knowledge 100',
-            'description': 'Reached a knowledge score of 100.',
-            'earned': knowledge_score >= 100,
-        },
-        {
-            'badge_type': Achievement.BADGE_KNOWLEDGE_500,
-            'title': 'Knowledge 500',
-            'description': 'Reached a knowledge score of 500.',
-            'earned': knowledge_score >= 500,
-        },
-        {
-            'badge_type': Achievement.BADGE_KNOWLEDGE_1000,
-            'title': 'Knowledge 1000',
-            'description': 'Reached a knowledge score of 1000.',
-            'earned': knowledge_score >= 1000,
-        },
-    ]
-
-    awarded = []
-
-    for badge in badge_definitions:
-        if not badge['earned']:
-            continue
-
-        achievement, created = Achievement.objects.get_or_create(
-            user=user,
-            badge_type=badge['badge_type'],
-            defaults={
-                'title': badge['title'],
-                'description': badge['description'],
-            }
-        )
-
-        if created:
-            awarded.append(achievement)
-
-    return awarded
+    return award_achievements(user)

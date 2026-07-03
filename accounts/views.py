@@ -7,6 +7,7 @@ from django.shortcuts import render, redirect
 from .forms import RegisterForm
 from documents.exam_preparation import get_exam_prediction, get_exam_report
 from documents.analytics import get_dashboard_analytics
+from documents.achievements import get_achievement_progress, get_user_achievements
 from documents.learning_diagnosis import (
     get_exam_readiness,
     get_recommended_action,
@@ -15,7 +16,6 @@ from documents.learning_diagnosis import (
     get_weak_topics,
 )
 from documents.models import (
-    Achievement,
     Activity,
     Document,
     Notification,
@@ -139,9 +139,7 @@ def dashboard(request):
         status=StudySession.STATUS_COMPLETED
     )
 
-    achievements = Achievement.objects.filter(
-        user=request.user
-    ).order_by('-created_at')
+    achievements = get_user_achievements(request.user)
 
     learning_diagnosis = analyze_student_strengths(request.user)
     quiz_accuracy = get_quiz_accuracy(request.user)
@@ -159,6 +157,7 @@ def dashboard(request):
     learning_coach = get_learning_coach_report(request.user)
     latest_notifications = get_latest_notifications(request.user, 5)
     dashboard_analytics = get_dashboard_analytics(request.user)
+    achievement_progress = get_achievement_progress(request.user)
 
     context = {
         'documents': documents,
@@ -210,6 +209,7 @@ def dashboard(request):
         'study_consistency': learning_coach['study_consistency'],
         'latest_notifications': latest_notifications,
         'dashboard_analytics': dashboard_analytics,
+        'achievement_progress': achievement_progress,
     }
 
     return render(

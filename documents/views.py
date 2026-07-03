@@ -27,6 +27,7 @@ from .ai import (
     generate_quiz,
     generate_summary,
 )
+from .achievements import check_and_award_achievements
 from .forms import CommunityMessageForm, DocumentForm, LibraryDocumentForm
 from .models import (
     Activity,
@@ -744,6 +745,7 @@ def complete_study_session(request, session_id):
             'completed_at',
         ]
     )
+    check_and_award_achievements(request.user)
 
     return redirect(
         'study_session_detail',
@@ -1875,6 +1877,7 @@ def document_study(request, document_id):
                     category=quiz_result['category'],
                     mistakes=mistakes
                 )
+                check_and_award_achievements(request.user)
                 questions = submitted_questions
 
         elif action == 'generate_flashcards':
@@ -1956,6 +1959,7 @@ def document_study(request, document_id):
                     category=overall_label,
                     cards=cards
                 )
+                check_and_award_achievements(request.user)
                 flashcards = cards
 
     return render(
@@ -2104,6 +2108,7 @@ def exam_simulator(request, document_id):
             'percentage': percentage,
             'mistakes': mistakes,
         }
+        check_and_award_achievements(request.user)
         logger.info(
             'Exam submit total request for document %s: %.1f seconds',
             document.id,
@@ -2489,6 +2494,7 @@ def document_quiz(request, document_id):
                 category=result['category'],
                 mistakes=mistakes
             )
+            check_and_award_achievements(request.user)
             logger.info(
                 'Quiz attempt DB save for document %s: %.1f seconds',
                 document.id,
@@ -2614,6 +2620,7 @@ def document_flashcards(request, document_id):
                 category=overall_label,
                 cards=results['cards']
             )
+            check_and_award_achievements(request.user)
             logger.info(
                 'Flashcard attempt DB save for document %s: %.1f seconds',
                 document.id,

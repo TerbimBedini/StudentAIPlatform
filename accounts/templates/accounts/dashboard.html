@@ -1274,7 +1274,7 @@
 
         <div class="section-heading">
             <div>
-                <h2 class="section-title">Recent Achievements</h2>
+                <h2 class="section-title">Achievements</h2>
                 <p class="section-subtitle">{{ achievements_count }} badges earned.</p>
             </div>
         </div>
@@ -1301,6 +1301,39 @@
                         No achievements yet. Upload a document or complete a quiz to earn your first badge.
                     </div>
                 {% endif %}
+
+                <div class="mt-4">
+                    <h3 class="h6 fw-bold mb-3">Achievement Progress</h3>
+                    {% if achievement_progress %}
+                        <div class="achievement-list">
+                            {% for achievement in achievement_progress|slice:":6" %}
+                                <div class="achievement-card">
+                                    <span class="achievement-badge">
+                                        <i class="bi {{ achievement.icon }}"></i>
+                                    </span>
+                                    <div class="min-w-0 w-100">
+                                        <div class="d-flex justify-content-between gap-2">
+                                            <p class="achievement-title mb-1">{{ achievement.title }}</p>
+                                            {% if achievement.earned %}
+                                                <span class="badge bg-success">Earned</span>
+                                            {% else %}
+                                                <span class="activity-meta">{{ achievement.current|floatformat:0 }}/{{ achievement.target|floatformat:0 }}</span>
+                                            {% endif %}
+                                        </div>
+                                        <p class="achievement-description mb-2">{{ achievement.description }}</p>
+                                        <div class="progress" style="height: 8px;">
+                                            <div class="progress-bar {% if achievement.earned %}bg-success{% endif %}" style="width: {{ achievement.percentage }}%;"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="empty-state">
+                            Achievement progress will appear after you start studying.
+                        </div>
+                    {% endif %}
+                </div>
             </div>
         </div>
 
