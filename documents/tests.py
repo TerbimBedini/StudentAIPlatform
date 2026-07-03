@@ -555,7 +555,67 @@ class DocumentTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Approved Algorithms')
         self.assertContains(response, 'Algorithms')
+        self.assertContains(response, 'View details')
         self.assertNotContains(response, 'Pending Anatomy')
+
+    def test_library_detail_shows_ai_actions_without_linked_document(self):
+        user = User.objects.create_user(
+            username='library_detail_student',
+            password='password123'
+        )
+        uploader = User.objects.create_user(
+            username='library_detail_uploader',
+            password='password123'
+        )
+        library_document = LibraryDocument.objects.create(
+            title='Approved Biology Notes',
+            field=LibraryDocument.FIELD_SCIENCE,
+            document_type=LibraryDocument.TYPE_NOTES,
+            course_name='Biology',
+            description='Cell biology overview',
+            file='library/biology.pdf',
+            uploaded_by=uploader,
+            moderation_status=LibraryDocument.STATUS_APPROVED,
+            is_public=True
+        )
+        self.client.login(username='library_detail_student', password='password123')
+
+        response = self.client.get(
+            reverse('library_detail', args=[library_document.id])
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Approved Biology Notes')
+        self.assertContains(response, 'AI Actions')
+        self.assertContains(response, 'Study with AI')
+        self.assertContains(response, 'connected to a personal study document')
+
+    def test_library_detail_hides_pending_from_normal_users(self):
+        user = User.objects.create_user(
+            username='library_pending_viewer',
+            password='password123'
+        )
+        uploader = User.objects.create_user(
+            username='library_pending_owner',
+            password='password123'
+        )
+        library_document = LibraryDocument.objects.create(
+            title='Pending Chemistry Notes',
+            field=LibraryDocument.FIELD_SCIENCE,
+            document_type=LibraryDocument.TYPE_NOTES,
+            course_name='Chemistry',
+            file='library/chemistry.pdf',
+            uploaded_by=uploader,
+            moderation_status=LibraryDocument.STATUS_PENDING,
+            is_public=False
+        )
+        self.client.login(username='library_pending_viewer', password='password123')
+
+        response = self.client.get(
+            reverse('library_detail', args=[library_document.id])
+        )
+
+        self.assertEqual(response.status_code, 404)
 
     def test_library_upload_creates_pending_private_submission(self):
         user = User.objects.create_user(
@@ -663,6 +723,35 @@ class DocumentTests(TestCase):
 
         self.assertContains(response, 'Thermodynamics notes')
         self.assertNotContains(response, 'Need law notes')
+
+    def test_community_chat_rejects_empty_message(self):
+        user = User.objects.create_user(
+            username='community_empty',
+            password='password123'
+        )
+        self.client.login(username='community_empty', password='password123')
+
+        response = self.client.post(
+            reverse('community_chat'),
+            {
+                'field': LibraryDocument.FIELD_ENGINEERING,
+                'kind': CommunityMessage.KIND_REQUEST,
+                'title': '   ',
+                'message': '   '
+            }
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Please fix the highlighted fields')
+        self.assertFalse(
+            CommunityMessage.objects.filter(user=user).exists()
+        )
+
+    def test_community_chat_requires_authentication(self):
+        response = self.client.get(reverse('community_chat'))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(reverse('login'), response['Location'])
 
     def test_document_detail_shows_original_pdf_by_default(self):
         user = User.objects.create_user(

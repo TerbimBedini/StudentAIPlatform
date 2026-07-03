@@ -99,7 +99,7 @@
 
     .filter-grid {
         display: grid;
-        grid-template-columns: 1fr 220px 220px auto;
+        grid-template-columns: 1fr 190px 190px 160px auto;
         gap: 12px;
     }
 
@@ -247,6 +247,10 @@
                         <option value="{{ key }}" {% if selected_type == key %}selected{% endif %}>{{ label }}</option>
                     {% endfor %}
                 </select>
+                <select class="form-select" name="sort">
+                    <option value="newest" {% if selected_sort == 'newest' %}selected{% endif %}>Newest</option>
+                    <option value="oldest" {% if selected_sort == 'oldest' %}selected{% endif %}>Oldest</option>
+                </select>
                 <button class="btn btn-premium px-4" type="submit">Filter</button>
             </form>
 
@@ -260,7 +264,7 @@
                                         <h3 class="resource-title">{{ document.title }}</h3>
                                         <div class="resource-meta">{{ document.course_name }} &middot; {{ document.get_field_display }}</div>
                                     </div>
-                                    <span class="status-pill">Approved</span>
+                                    <span class="status-pill">{{ document.get_moderation_status_display }}</span>
                                 </div>
 
                                 <p class="resource-meta mt-3 mb-3">
@@ -271,11 +275,23 @@
                                     {{ document.get_document_type_display }}
                                     {% if document.academic_year %}&middot; {{ document.academic_year }}{% endif %}
                                     &middot; by {{ document.uploaded_by.username }}
+                                    &middot; {{ document.uploaded_at|date:"d/m/Y" }}
                                 </div>
 
-                                <a href="{{ document.file.url }}" target="_blank" class="btn btn-premium w-100">
-                                    <i class="bi bi-file-earmark-text me-1"></i> Open document
-                                </a>
+                                <div class="d-grid gap-2">
+                                    <a href="{% url 'library_detail' document.id %}" class="btn btn-premium w-100">
+                                        <i class="bi bi-file-earmark-text me-1"></i> View details
+                                    </a>
+                                    <a href="{{ document.file.url }}" target="_blank" class="btn btn-soft w-100">
+                                        Open file
+                                    </a>
+                                    <div class="d-flex gap-2 flex-wrap">
+                                        <button class="btn btn-outline-secondary btn-sm" disabled>Study with AI</button>
+                                        <button class="btn btn-outline-secondary btn-sm" disabled>Quiz</button>
+                                        <button class="btn btn-outline-secondary btn-sm" disabled>Flashcards</button>
+                                        <button class="btn btn-outline-secondary btn-sm" disabled>Exam</button>
+                                    </div>
+                                </div>
                             </div>
                         </article>
                     {% endfor %}

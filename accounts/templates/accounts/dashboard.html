@@ -879,6 +879,71 @@
 
 <div class="section-heading">
     <div>
+        <h2 class="section-title">Community</h2>
+        <p class="section-subtitle">Recent shared learning activity from students.</p>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+        <a href="{% url 'community_chat' %}" class="btn btn-soft btn-sm">Community</a>
+        <a href="{% url 'library_home' %}" class="btn btn-soft btn-sm">Library</a>
+    </div>
+</div>
+
+<div class="glass-card mb-4">
+    <div class="card-pad">
+        <div class="row g-3">
+            <div class="col-lg-6">
+                <h3 class="h6 fw-bold mb-3">Latest Messages</h3>
+                {% if latest_community_messages %}
+                    <div class="activity-list">
+                        {% for message in latest_community_messages %}
+                            <a href="{% url 'community_chat' %}" class="activity-row text-decoration-none text-reset">
+                                <div class="activity-main">
+                                    <span class="activity-icon"><i class="bi bi-chat-dots"></i></span>
+                                    <div class="min-w-0">
+                                        <p class="activity-title text-truncate">{{ message.title }}</p>
+                                        <div class="activity-meta">
+                                            {{ message.user.username }} · {{ message.created_at|date:"d/m H:i" }}
+                                        </div>
+                                        <div class="activity-meta">{{ message.message|truncatechars:110 }}</div>
+                                    </div>
+                                </div>
+                            </a>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="empty-state">No community messages yet.</div>
+                {% endif %}
+            </div>
+            <div class="col-lg-6">
+                <h3 class="h6 fw-bold mb-3">Shared Library</h3>
+                {% if latest_library_documents %}
+                    <div class="activity-list">
+                        {% for document in latest_library_documents %}
+                            <a href="{% url 'library_detail' document.id %}" class="activity-row text-decoration-none text-reset">
+                                <div class="activity-main">
+                                    <span class="activity-icon"><i class="bi bi-file-earmark-text"></i></span>
+                                    <div class="min-w-0">
+                                        <p class="activity-title text-truncate">{{ document.title }}</p>
+                                        <div class="activity-meta">
+                                            {{ document.get_field_display }} · {{ document.get_document_type_display }} · {{ document.uploaded_by.username }}
+                                        </div>
+                                        <div class="activity-meta">{{ document.description|default:"No description provided."|truncatechars:110 }}</div>
+                                    </div>
+                                </div>
+                                <span class="badge bg-success">Approved</span>
+                            </a>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="empty-state">No approved library documents yet.</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="section-heading">
+    <div>
         <h2 class="section-title">Notifications</h2>
         <p class="section-subtitle">Latest updates from your AI study coach.</p>
     </div>

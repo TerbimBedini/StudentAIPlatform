@@ -467,6 +467,7 @@ def get_library_field_choices():
 def library_home(request):
     selected_field = request.GET.get('field', '')
     selected_type = request.GET.get('type', '')
+    selected_sort = request.GET.get('sort', 'newest')
     query = request.GET.get('q', '').strip()
 
     documents = LibraryDocument.objects.filter(
@@ -486,6 +487,11 @@ def library_home(request):
             | models.Q(course_name__icontains=query)
             | models.Q(description__icontains=query)
         )
+
+    if selected_sort == 'oldest':
+        documents = documents.order_by('uploaded_at')
+    else:
+        documents = documents.order_by('-uploaded_at')
 
     field_cards = [
         {
@@ -516,6 +522,7 @@ def library_home(request):
         'type_choices': LibraryDocument.DOCUMENT_TYPE_CHOICES,
         'selected_field': selected_field,
         'selected_type': selected_type,
+        'selected_sort': selected_sort,
         'query': query,
         'pending_count': pending_count,
         'community_messages': community_messages,
@@ -525,6 +532,34 @@ def library_home(request):
         request,
         'documents/library.html',
         context
+    )
+
+
+@login_required(login_url='login')
+def library_detail(request, document_id):
+    library_document = get_object_or_404(
+        LibraryDocument.objects.select_related('uploaded_by'),
+        id=document_id
+    )
+
+    if (
+        library_document.moderation_status != LibraryDocument.STATUS_APPROVED
+        or not library_document.is_public
+    ) and not request.user.is_staff and library_document.uploaded_by != request.user:
+        raise Http404
+
+    linked_document = Document.objects.filter(
+        uploaded_by=library_document.uploaded_by,
+        title=library_document.title
+    ).first()
+
+    return render(
+        request,
+        'documents/library_detail.html',
+        {
+            'library_document': library_document,
+            'linked_document': linked_document,
+        }
     )
 
 
@@ -585,7 +620,7 @@ def community_chat(request):
     selected_field = request.GET.get('field', '')
     messages = CommunityMessage.objects.filter(
         is_hidden=False
-    ).select_related('user')
+    ).select_related('user').order_by('-created_at')
 
     if selected_field:
         messages = messages.filter(field=selected_field)

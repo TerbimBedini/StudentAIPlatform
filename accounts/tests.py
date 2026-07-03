@@ -7,9 +7,11 @@ from documents.achievements import check_and_award_achievements, get_achievement
 from documents.analytics import get_dashboard_analytics
 from documents.models import (
     Achievement,
+    CommunityMessage,
     Document,
     FlashcardAttempt,
     QuizAttempt,
+    LibraryDocument,
     StudySession,
 )
 
@@ -342,3 +344,44 @@ class AuthenticationSecurityTests(TestCase):
         self.assertContains(response, 'First Upload')
         self.assertContains(response, 'Earned')
         self.assertTrue(get_achievement_progress(user))
+
+    def test_dashboard_renders_community_preview(self):
+        user = User.objects.create_user(
+            username='dashboard_community',
+            password='StrongPass123!'
+        )
+        uploader = User.objects.create_user(
+            username='dashboard_library_uploader',
+            password='StrongPass123!'
+        )
+        CommunityMessage.objects.create(
+            user=uploader,
+            field=LibraryDocument.FIELD_COMPUTER_SCIENCE,
+            kind=CommunityMessage.KIND_DISCUSSION,
+            title='Study group tonight',
+            message='We are reviewing algorithms exercises.'
+        )
+        library_document = LibraryDocument.objects.create(
+            title='Shared Algorithms Notes',
+            field=LibraryDocument.FIELD_COMPUTER_SCIENCE,
+            document_type=LibraryDocument.TYPE_NOTES,
+            course_name='Algorithms',
+            description='Sorting and graphs notes.',
+            file='library/shared-algorithms.pdf',
+            uploaded_by=uploader,
+            moderation_status=LibraryDocument.STATUS_APPROVED,
+            is_public=True
+        )
+        self.client.login(
+            username='dashboard_community',
+            password='StrongPass123!'
+        )
+
+        response = self.client.get(reverse('dashboard'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Community')
+        self.assertContains(response, 'Study group tonight')
+        self.assertContains(response, 'Shared Algorithms Notes')
+        self.assertContains(response, reverse('community_chat'))
+        self.assertContains(response, reverse('library_detail', args=[library_document.id]))
