@@ -85,42 +85,21 @@ def get_selected_documents(request, document_ids):
     ).order_by('title')
 
 
-def combine_documents_text(documents):
-    text_parts = []
-
-    for document in documents:
-        text = get_document_text(document)
-        if text:
-            text_parts.append(
-                f'Dokumenti: {document.title}\n{text[:2500]}'
-            )
-
-    return '\n\n---\n\n'.join(text_parts)
-
-
-def combine_document_chunks(documents, chunk_count=5, fallback_chars=1800):
+def combine_document_chunks(documents, chunk_count=5, max_chars=4500):
     chunk_parts = []
-    fallback_parts = []
 
     for document in documents:
-        document_text = get_document_text(document)
-        if document_text:
-            fallback_parts.append(
-                f'Dokumenti: {document.title}\n{document_text[:fallback_chars]}'
-            )
-
         chunks = get_sample_document_chunks(document, chunk_count=2)
 
         if chunks:
             chunk_parts.extend(
                 f'Dokumenti: {document.title}\n{chunk}'
                 for chunk in chunks
-                if chunk and chunk.strip() and chunk.strip() not in document_text
+                if chunk and chunk.strip()
             )
 
     random.shuffle(chunk_parts)
-    combined_parts = fallback_parts + chunk_parts
-    return '\n\n---\n\n'.join(combined_parts[:chunk_count])
+    return '\n\n---\n\n'.join(chunk_parts[:chunk_count])[:max_chars]
 
 
 def record_activity(user, activity_type, document_title):
@@ -2191,7 +2170,10 @@ def multi_document_chat(request):
                 )
 
                 if not relevant_text.strip():
-                    relevant_text = combine_documents_text(documents)
+                    relevant_text = combine_document_chunks(
+                        documents[:5],
+                        chunk_count=5
+                    )
 
                 if not relevant_text.strip():
                     error_message = 'Nuk u gjet tekst i lexueshem nga dokumentet e tua.'
@@ -2318,17 +2300,28 @@ def multi_document_study(request):
 
         else:
             try:
-                combined_text = combine_documents_text(selected_documents)
-
-                if not combined_text.strip():
-                    error_message = 'Nuk u gjet tekst i lexueshem ne dokumentet e zgjedhura.'
-                elif action == 'chat':
+                if action == 'chat':
                     question = request.POST.get('question', '').strip()
                     if not question:
                         error_message = 'Shkruaj nje pyetje per Chat AI.'
                     else:
                         if not consume_ai_request_quota(request.user):
                             raise AIError(ai_rate_limit_message())
+
+                        combined_text = search_multiple_documents(
+                            selected_documents,
+                            question,
+                            n_results=5
+                        )
+                        if not combined_text.strip():
+                            combined_text = combine_document_chunks(
+                                selected_documents,
+                                chunk_count=5
+                            )
+
+                        if not combined_text.strip():
+                            error_message = 'Nuk u gjet tekst i lexueshem ne dokumentet e zgjedhura.'
+                            raise TextExtractionError(error_message)
 
                         started_at = time.perf_counter()
                         answer = ask_document_ai(combined_text, question)

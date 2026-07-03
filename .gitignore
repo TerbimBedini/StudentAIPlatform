@@ -30,9 +30,4 @@ staticfiles/
 # Generated/local app data
 chroma_db/
 lovable_frontend/
-
-__pycache__/
-*.pyc
-db.sqlite3
 studentai_er_diagram.png
-media/

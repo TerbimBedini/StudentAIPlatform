@@ -156,6 +156,9 @@ class LibraryDocumentForm(forms.ModelForm):
 
 
 class CommunityMessageForm(forms.ModelForm):
+    MAX_TITLE_LENGTH = 120
+    MAX_MESSAGE_LENGTH = 1000
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -178,3 +181,23 @@ class CommunityMessageForm(forms.ModelForm):
             'title',
             'message',
         ]
+
+    def clean_title(self):
+        title = (self.cleaned_data.get('title') or '').strip()
+        if not title:
+            raise forms.ValidationError('Shkruaj nje titull.')
+        if len(title) > self.MAX_TITLE_LENGTH:
+            raise forms.ValidationError(
+                f'Titulli duhet te kete maksimum {self.MAX_TITLE_LENGTH} karaktere.'
+            )
+        return title
+
+    def clean_message(self):
+        message = (self.cleaned_data.get('message') or '').strip()
+        if not message:
+            raise forms.ValidationError('Shkruaj nje mesazh.')
+        if len(message) > self.MAX_MESSAGE_LENGTH:
+            raise forms.ValidationError(
+                f'Mesazhi duhet te kete maksimum {self.MAX_MESSAGE_LENGTH} karaktere.'
+            )
+        return message

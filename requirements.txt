@@ -3,6 +3,7 @@ certifi==2026.5.20
 charset-normalizer==3.4.7
 Django==6.0.6
 chromadb==1.5.9
+django-extensions==4.1
 djangorestframework==3.17.1
 idna==3.18
 PyMuPDF==1.27.2.3

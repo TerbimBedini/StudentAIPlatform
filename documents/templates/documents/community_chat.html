@@ -40,6 +40,12 @@
             <h1 class="h4 fw-bold mb-2">Community Board</h1>
             <p class="text-muted">Ask for lectures, old exams, or offer study material.</p>
 
+            {% if form.errors %}
+                <div class="alert alert-warning rounded-3">
+                    Please fix the highlighted fields before posting.
+                </div>
+            {% endif %}
+
             <form method="post" class="d-grid gap-3">
                 {% csrf_token %}
                 {% for field in form %}
@@ -83,7 +89,7 @@
                             </div>
                             <div class="text-muted small">{{ message.created_at|date:"d/m H:i" }}</div>
                         </div>
-                        <p class="mb-0 mt-3">{{ message.message }}</p>
+                        <p class="mb-0 mt-3">{{ message.message|truncatechars:600 }}</p>
                     </article>
                 {% empty %}
                     <div class="message-card text-muted">No community posts yet.</div>

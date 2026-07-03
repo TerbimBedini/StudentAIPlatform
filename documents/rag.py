@@ -1,3 +1,4 @@
+import hashlib
 import random
 import re
 
@@ -233,6 +234,17 @@ def _fallback_chunks(document, chunk_count=5):
     return chunks[:chunk_count]
 
 
+def get_document_collection_name(document):
+    file_name = getattr(getattr(document, 'file', None), 'name', '') or ''
+    uploaded_at = getattr(document, 'uploaded_at', '') or ''
+    signature_source = f'{document.id}:{file_name}:{uploaded_at}'
+    signature = hashlib.sha1(
+        signature_source.encode('utf-8')
+    ).hexdigest()[:10]
+
+    return f'document_{document.id}_{signature}'
+
+
 def get_document_collection(document):
     rag_client = get_rag_client()
 
@@ -240,14 +252,14 @@ def get_document_collection(document):
         return None
 
     return rag_client.get_or_create_collection(
-        name=f"document_{document.id}"
+        name=get_document_collection_name(document)
     )
 
 
 def create_document_index(document, force=False):
     rag_client = get_rag_client()
     embedding_model = get_embedding_model()
-    collection_name = f"document_{document.id}"
+    collection_name = get_document_collection_name(document)
 
     if rag_client is None or embedding_model is None:
         return 0
@@ -374,14 +386,61 @@ def search_document_chunks(document, question, n_results=4):
     )
 
 
-def search_multiple_documents(documents, question, n_results=8):
+def _multi_document_fallback(documents, question, n_results=8, max_chars=5000):
+    gathered_chunks = []
+
+    for document in documents:
+        if len(gathered_chunks) >= n_results:
+            break
+
+        try:
+            text = get_document_text(document)
+            lexical_chunks = _lexical_relevant_chunks(
+                text,
+                question,
+                max_chunks=2
+            )
+            chunks = lexical_chunks or get_sample_document_chunks(
+                document,
+                chunk_count=1
+            )
+        except Exception:
+            chunks = []
+
+        for chunk in chunks:
+            if len(gathered_chunks) >= n_results:
+                break
+            if chunk and chunk.strip():
+                gathered_chunks.append(
+                    f'Dokumenti: {document.title}\n{chunk.strip()}'
+                )
+
+    return _combine_contexts(gathered_chunks, max_chars=max_chars)
+
+
+def search_multiple_documents(documents, question, n_results=8, max_chars=5000):
+    documents = list(documents)
     rag_client = get_rag_client()
     embedding_model = get_embedding_model()
 
     if rag_client is None or embedding_model is None:
-        return ""
+        return _multi_document_fallback(
+            documents,
+            question,
+            n_results=n_results,
+            max_chars=max_chars
+        )
 
-    question_embedding = embedding_model.encode(question).tolist()
+    try:
+        question_embedding = embedding_model.encode(question).tolist()
+    except Exception:
+        return _multi_document_fallback(
+            documents,
+            question,
+            n_results=n_results,
+            max_chars=max_chars
+        )
+
     gathered_chunks = []
 
     for document in documents:
@@ -398,15 +457,33 @@ def search_multiple_documents(documents, question, n_results=8):
 
         remaining = n_results - len(gathered_chunks)
 
-        results = collection.query(
-            query_embeddings=[question_embedding],
-            n_results=remaining,
-        )
+        try:
+            collection_count = collection.count()
+            if collection_count == 0:
+                continue
+            results = collection.query(
+                query_embeddings=[question_embedding],
+                n_results=min(remaining, collection_count),
+            )
+        except Exception:
+            continue
 
         chunks = results.get("documents", [[]])[0]
-        gathered_chunks.extend(chunks[:remaining])
+        gathered_chunks.extend(
+            f'Dokumenti: {document.title}\n{chunk}'
+            for chunk in chunks[:remaining]
+            if chunk and chunk.strip()
+        )
 
-    return "\n\n".join(gathered_chunks[:n_results])
+    if not gathered_chunks:
+        return _multi_document_fallback(
+            documents,
+            question,
+            n_results=n_results,
+            max_chars=max_chars
+        )
+
+    return _combine_contexts(gathered_chunks[:n_results], max_chars=max_chars)
 
 
 def get_random_document_chunks(document, chunk_count=5):

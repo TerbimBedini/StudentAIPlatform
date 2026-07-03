@@ -17,7 +17,9 @@ from documents.learning_diagnosis import (
 )
 from documents.models import (
     Activity,
+    CommunityMessage,
     Document,
+    LibraryDocument,
     Notification,
     QuizAttempt,
     StudySession,
@@ -158,6 +160,13 @@ def dashboard(request):
     latest_notifications = get_latest_notifications(request.user, 5)
     dashboard_analytics = get_dashboard_analytics(request.user)
     achievement_progress = get_achievement_progress(request.user)
+    latest_community_messages = CommunityMessage.objects.filter(
+        is_hidden=False
+    ).select_related('user').order_by('-created_at')[:5]
+    latest_library_documents = LibraryDocument.objects.filter(
+        moderation_status=LibraryDocument.STATUS_APPROVED,
+        is_public=True
+    ).select_related('uploaded_by').order_by('-uploaded_at')[:5]
 
     context = {
         'documents': documents,
@@ -210,6 +219,8 @@ def dashboard(request):
         'latest_notifications': latest_notifications,
         'dashboard_analytics': dashboard_analytics,
         'achievement_progress': achievement_progress,
+        'latest_community_messages': latest_community_messages,
+        'latest_library_documents': latest_library_documents,
     }
 
     return render(

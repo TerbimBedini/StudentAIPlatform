@@ -1481,12 +1481,14 @@ class DocumentTests(TestCase):
         first_document = Document.objects.create(
             title='Materiali 1',
             file=first_path.name,
-            uploaded_by=user
+            uploaded_by=user,
+            extracted_text='Materiali i pare per AI'
         )
         second_document = Document.objects.create(
             title='Materiali 2',
             file=second_path.name,
-            uploaded_by=user
+            uploaded_by=user,
+            extracted_text='Materiali i dyte per provim'
         )
         self.client.login(username='multi_student', password='password123')
 
@@ -1502,8 +1504,11 @@ class DocumentTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Pergjigje nga disa materiale.')
         prompt_text = mock_ask_document_ai.call_args.args[0]
+        self.assertIn('Dokumenti: Materiali 1', prompt_text)
+        self.assertIn('Dokumenti: Materiali 2', prompt_text)
         self.assertIn('Materiali i pare per AI', prompt_text)
         self.assertIn('Materiali i dyte per provim', prompt_text)
+        self.assertLessEqual(len(prompt_text), 5000)
 
     @patch('documents.views.generate_quiz')
     def test_multi_document_study_generates_quiz_from_selected_documents(self, mock_generate_quiz):
