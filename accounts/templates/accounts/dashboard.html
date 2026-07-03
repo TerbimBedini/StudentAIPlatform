@@ -764,6 +764,121 @@
 
 <div class="section-heading">
     <div>
+        <h2 class="section-title">Advanced Analytics</h2>
+        <p class="section-subtitle">Progress signals from quizzes, flashcards, sessions, and readiness.</p>
+    </div>
+</div>
+
+<div class="glass-card mb-4">
+    <div class="card-pad">
+        <div class="row g-3">
+            <div class="col-md-4">
+                <div class="achievement-card h-100">
+                    <span class="achievement-badge"><i class="bi bi-clock"></i></span>
+                    <div class="min-w-0 w-100">
+                        <p class="achievement-title">Weekly Study Hours</p>
+                        <p class="achievement-description mb-2">{{ dashboard_analytics.weekly_study_hours|floatformat:1 }} hours</p>
+                        <div class="progress" style="height: 8px;">
+                            <div class="progress-bar" style="width: {{ dashboard_analytics.weekly_study_hours }}%;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="achievement-card h-100">
+                    <span class="achievement-badge"><i class="bi bi-patch-check"></i></span>
+                    <div class="min-w-0 w-100">
+                        <p class="achievement-title">Quiz Accuracy</p>
+                        <p class="achievement-description mb-2">{{ dashboard_analytics.quiz_accuracy_trend.current|floatformat:1 }}%</p>
+                        <div class="progress" style="height: 8px;">
+                            <div class="progress-bar" style="width: {{ dashboard_analytics.quiz_accuracy_trend.current }}%;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="achievement-card h-100">
+                    <span class="achievement-badge"><i class="bi bi-card-checklist"></i></span>
+                    <div class="min-w-0 w-100">
+                        <p class="achievement-title">Flashcard Success</p>
+                        <p class="achievement-description mb-2">{{ dashboard_analytics.flashcard_success_rate.current|floatformat:1 }}%</p>
+                        <div class="progress" style="height: 8px;">
+                            <div class="progress-bar" style="width: {{ dashboard_analytics.flashcard_success_rate.current }}%;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="achievement-card h-100">
+                    <span class="achievement-badge"><i class="bi bi-graph-up"></i></span>
+                    <div class="min-w-0">
+                        <p class="achievement-title">Knowledge Growth</p>
+                        <p class="achievement-description mb-0">
+                            {{ dashboard_analytics.knowledge_growth.current }}/100
+                            {% if dashboard_analytics.knowledge_growth.growth %}
+                                · {{ dashboard_analytics.knowledge_growth.growth|floatformat:1 }}%
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="achievement-card h-100">
+                    <span class="achievement-badge"><i class="bi bi-mortarboard"></i></span>
+                    <div class="min-w-0 w-100">
+                        <p class="achievement-title">Exam Readiness</p>
+                        <p class="achievement-description mb-2">{{ dashboard_analytics.exam_readiness_trend.current|floatformat:1 }}%</p>
+                        <div class="progress" style="height: 8px;">
+                            <div class="progress-bar" style="width: {{ dashboard_analytics.exam_readiness_trend.current }}%;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="achievement-card h-100">
+                    <span class="achievement-badge"><i class="bi bi-fire"></i></span>
+                    <div class="min-w-0">
+                        <p class="achievement-title">Learning Streak</p>
+                        <p class="achievement-description mb-0">{{ dashboard_analytics.learning_streak }} days</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="achievement-card h-100">
+                    <span class="achievement-badge"><i class="bi bi-exclamation-triangle"></i></span>
+                    <div class="min-w-0 w-100">
+                        <p class="achievement-title">Weak Topics</p>
+                        {% if dashboard_analytics.weak_topics_chart %}
+                            {% for topic in dashboard_analytics.weak_topics_chart %}
+                                <p class="achievement-description mb-1">{{ topic.topic }} - {{ topic.value|floatformat:1 }}%</p>
+                            {% endfor %}
+                        {% else %}
+                            <p class="achievement-description mb-0">No weak topics detected yet.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="achievement-card h-100">
+                    <span class="achievement-badge"><i class="bi bi-stars"></i></span>
+                    <div class="min-w-0 w-100">
+                        <p class="achievement-title">Strong Topics</p>
+                        {% if dashboard_analytics.strong_topics_chart %}
+                            {% for topic in dashboard_analytics.strong_topics_chart %}
+                                <p class="achievement-description mb-1">{{ topic.topic }} - {{ topic.value|floatformat:1 }}%</p>
+                            {% endfor %}
+                        {% else %}
+                            <p class="achievement-description mb-0">Complete more quizzes to reveal strengths.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="section-heading">
+    <div>
         <h2 class="section-title">Notifications</h2>
         <p class="section-subtitle">Latest updates from your AI study coach.</p>
     </div>

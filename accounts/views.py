@@ -6,6 +6,7 @@ from django.views.decorators.http import require_POST
 from django.shortcuts import render, redirect
 from .forms import RegisterForm
 from documents.exam_preparation import get_exam_prediction, get_exam_report
+from documents.analytics import get_dashboard_analytics
 from documents.learning_diagnosis import (
     get_exam_readiness,
     get_recommended_action,
@@ -157,6 +158,7 @@ def dashboard(request):
     predicted_exam_score = get_exam_prediction(request.user)
     learning_coach = get_learning_coach_report(request.user)
     latest_notifications = get_latest_notifications(request.user, 5)
+    dashboard_analytics = get_dashboard_analytics(request.user)
 
     context = {
         'documents': documents,
@@ -207,6 +209,7 @@ def dashboard(request):
         'daily_study_goal': learning_coach['daily_study_goal'],
         'study_consistency': learning_coach['study_consistency'],
         'latest_notifications': latest_notifications,
+        'dashboard_analytics': dashboard_analytics,
     }
 
     return render(
