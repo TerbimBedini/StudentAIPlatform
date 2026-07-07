@@ -397,6 +397,28 @@
         background: rgba(248, 250, 252, 0.72);
     }
 
+    .analytics-chart-card {
+        min-height: 310px;
+    }
+
+    .chart-wrap {
+        position: relative;
+        min-height: 230px;
+    }
+
+    .chart-wrap canvas {
+        width: 100% !important;
+        max-height: 250px;
+    }
+
+    .chart-empty {
+        min-height: 230px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+    }
+
     .status-badge {
         display: inline-flex;
         align-items: center;
@@ -886,6 +908,92 @@
                             <p class="achievement-description mb-0">Complete more quizzes to reveal strengths.</p>
                         {% endif %}
                     </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="glass-card mb-4">
+    <div class="card-pad">
+        <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap mb-3">
+            <div>
+                <h3 class="h5 fw-bold mb-1">Analytics Visuals</h3>
+                <p class="section-subtitle mb-0">A quick visual read of your quiz, study, readiness, and topic performance.</p>
+            </div>
+            <span class="badge bg-primary-subtle text-primary">Live dashboard data</span>
+        </div>
+
+        <div class="row g-3">
+            <div class="col-lg-6">
+                <div class="achievement-card analytics-chart-card h-100 d-block">
+                    <p class="achievement-title">Quiz Accuracy Trend</p>
+                    <p class="achievement-description mb-3">Last quiz attempts shown as percentages.</p>
+                    {% if dashboard_analytics.quiz_accuracy_trend.points %}
+                        <div class="chart-wrap">
+                            <canvas id="quizAccuracyChart" aria-label="Quiz accuracy trend chart" role="img"></canvas>
+                        </div>
+                    {% else %}
+                        <div class="empty-state chart-empty">No quiz history yet. Generate and submit a quiz to start the trend.</div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="col-lg-6">
+                <div class="achievement-card analytics-chart-card h-100 d-block">
+                    <p class="achievement-title">Knowledge Growth</p>
+                    <p class="achievement-description mb-3">Current Knowledge Score and growth signal.</p>
+                    <div class="chart-wrap">
+                        <canvas id="knowledgeGrowthChart" aria-label="Knowledge growth chart" role="img"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-6">
+                <div class="achievement-card analytics-chart-card h-100 d-block">
+                    <p class="achievement-title">Weekly Study Hours</p>
+                    <p class="achievement-description mb-3">Study time completed during the last 7 days.</p>
+                    <div class="chart-wrap">
+                        <canvas id="weeklyStudyChart" aria-label="Weekly study hours chart" role="img"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-6">
+                <div class="achievement-card analytics-chart-card h-100 d-block">
+                    <p class="achievement-title">Exam Readiness</p>
+                    <p class="achievement-description mb-3">Readiness score based on quiz, knowledge, and study activity.</p>
+                    <div class="chart-wrap">
+                        <canvas id="examReadinessChart" aria-label="Exam readiness chart" role="img"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-6">
+                <div class="achievement-card analytics-chart-card h-100 d-block">
+                    <p class="achievement-title">Weak Topics</p>
+                    <p class="achievement-description mb-3">Topics under 60% average quiz performance.</p>
+                    {% if dashboard_analytics.weak_topics_chart %}
+                        <div class="chart-wrap">
+                            <canvas id="weakTopicsChart" aria-label="Weak topics chart" role="img"></canvas>
+                        </div>
+                    {% else %}
+                        <div class="empty-state chart-empty">No weak topics detected yet. Complete more quizzes for topic diagnosis.</div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="col-lg-6">
+                <div class="achievement-card analytics-chart-card h-100 d-block">
+                    <p class="achievement-title">Strong Topics</p>
+                    <p class="achievement-description mb-3">Topics at or above 80% average quiz performance.</p>
+                    {% if dashboard_analytics.strong_topics_chart %}
+                        <div class="chart-wrap">
+                            <canvas id="strongTopicsChart" aria-label="Strong topics chart" role="img"></canvas>
+                        </div>
+                    {% else %}
+                        <div class="empty-state chart-empty">No strong topics yet. A high quiz score will reveal strengths here.</div>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -1432,4 +1540,167 @@
 
     </aside>
 </div>
+{{ dashboard_analytics|json_script:"dashboard-analytics-data" }}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    (function () {
+        const dataScript = document.getElementById('dashboard-analytics-data');
+        if (!dataScript || !window.Chart) {
+            return;
+        }
+
+        const analytics = JSON.parse(dataScript.textContent);
+        const chartDefaults = {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: '#111827',
+                    padding: 12,
+                    cornerRadius: 12
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    suggestedMax: 100,
+                    grid: { color: 'rgba(148, 163, 184, 0.18)' },
+                    ticks: { color: '#64748b' }
+                },
+                x: {
+                    grid: { display: false },
+                    ticks: { color: '#64748b' }
+                }
+            }
+        };
+
+        function renderLineChart(canvasId, points, label, color) {
+            const canvas = document.getElementById(canvasId);
+            if (!canvas || !points || !points.length) {
+                return;
+            }
+
+            new Chart(canvas, {
+                type: 'line',
+                data: {
+                    labels: points.map((point) => point.label),
+                    datasets: [{
+                        label: label,
+                        data: points.map((point) => point.value),
+                        borderColor: color,
+                        backgroundColor: color.replace('1)', '0.12)'),
+                        borderWidth: 3,
+                        tension: 0.35,
+                        fill: true,
+                        pointRadius: 4,
+                        pointHoverRadius: 6
+                    }]
+                },
+                options: chartDefaults
+            });
+        }
+
+        function renderBarChart(canvasId, labels, values, label, color) {
+            const canvas = document.getElementById(canvasId);
+            if (!canvas || !labels.length) {
+                return;
+            }
+
+            new Chart(canvas, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: label,
+                        data: values,
+                        backgroundColor: color,
+                        borderRadius: 10
+                    }]
+                },
+                options: chartDefaults
+            });
+        }
+
+        function renderDoughnut(canvasId, value, label, color) {
+            const canvas = document.getElementById(canvasId);
+            if (!canvas) {
+                return;
+            }
+
+            const safeValue = Math.max(0, Math.min(100, Number(value) || 0));
+            new Chart(canvas, {
+                type: 'doughnut',
+                data: {
+                    labels: [label, 'Remaining'],
+                    datasets: [{
+                        data: [safeValue, Math.max(0, 100 - safeValue)],
+                        backgroundColor: [color, 'rgba(226, 232, 240, 0.9)'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '68%',
+                    plugins: {
+                        legend: { position: 'bottom' },
+                        tooltip: { backgroundColor: '#111827', padding: 12, cornerRadius: 12 }
+                    }
+                }
+            });
+        }
+
+        const quizTrend = analytics.quiz_accuracy_trend || {};
+        renderLineChart(
+            'quizAccuracyChart',
+            quizTrend.points || [],
+            'Quiz Accuracy',
+            'rgba(37, 99, 235, 1)'
+        );
+
+        const knowledge = analytics.knowledge_growth || {};
+        renderBarChart(
+            'knowledgeGrowthChart',
+            ['Knowledge Score', 'Growth'],
+            [knowledge.current || 0, knowledge.growth || 0],
+            'Knowledge',
+            'rgba(99, 102, 241, 0.82)'
+        );
+
+        renderBarChart(
+            'weeklyStudyChart',
+            ['This week'],
+            [analytics.weekly_study_hours || 0],
+            'Study Hours',
+            'rgba(14, 165, 233, 0.82)'
+        );
+
+        const readiness = analytics.exam_readiness_trend || {};
+        renderDoughnut(
+            'examReadinessChart',
+            readiness.current || 0,
+            'Ready',
+            'rgba(16, 185, 129, 0.9)'
+        );
+
+        const weakTopics = analytics.weak_topics_chart || [];
+        renderBarChart(
+            'weakTopicsChart',
+            weakTopics.map((topic) => topic.topic),
+            weakTopics.map((topic) => topic.value),
+            'Weak Topics',
+            'rgba(245, 158, 11, 0.82)'
+        );
+
+        const strongTopics = analytics.strong_topics_chart || [];
+        renderBarChart(
+            'strongTopicsChart',
+            strongTopics.map((topic) => topic.topic),
+            strongTopics.map((topic) => topic.value),
+            'Strong Topics',
+            'rgba(34, 197, 94, 0.82)'
+        );
+    })();
+</script>
 {% endblock %}

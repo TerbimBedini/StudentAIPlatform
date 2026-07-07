@@ -189,7 +189,10 @@ class AuthenticationSecurityTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Advanced Analytics')
+        self.assertContains(response, 'Analytics Visuals')
+        self.assertContains(response, 'id="dashboard-analytics-data"')
         self.assertContains(response, 'Weekly Study Hours')
+        self.assertContains(response, 'No quiz history yet.')
         self.assertContains(response, 'No weak topics detected yet.')
 
     def test_dashboard_renders_advanced_analytics_with_activity(self):
@@ -242,6 +245,11 @@ class AuthenticationSecurityTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Advanced Analytics')
+        self.assertContains(response, 'Analytics Visuals')
+        self.assertContains(response, 'id="dashboard-analytics-data"')
+        self.assertContains(response, 'id="quizAccuracyChart"')
+        self.assertContains(response, 'id="weakTopicsChart"')
+        self.assertContains(response, 'id="strongTopicsChart"')
         self.assertContains(response, 'Flashcard Success')
         self.assertContains(response, 'Probability - 40.0%')
         self.assertContains(response, 'Algorithms - 100.0%')
