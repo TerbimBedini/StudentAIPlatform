@@ -38,7 +38,7 @@
     <aside class="panel">
         <div class="card-pad">
             <h1 class="h4 fw-bold mb-2">Community Board</h1>
-            <p class="text-muted">Ask for lectures, old exams, or offer study material.</p>
+            <p class="text-muted">Ask for lectures, old exams, or offer study material. Keep posts short, specific, and useful.</p>
 
             {% if form.errors %}
                 <div class="alert alert-warning rounded-3">
@@ -67,10 +67,10 @@
             <div class="d-flex justify-content-between align-items-center gap-3 flex-wrap mb-4">
                 <div>
                     <h2 class="h4 fw-bold mb-1">Requests and offers</h2>
-                    <p class="text-muted mb-0">Keep it academic and useful for everyone.</p>
+                    <p class="text-muted mb-0">Latest requests and offers from students. User content is displayed safely.</p>
                 </div>
                 <form method="get">
-                    <select class="form-select" name="field" onchange="this.form.submit()">
+                    <select class="form-select" name="field" aria-label="Filter community messages by field" onchange="this.form.submit()">
                         <option value="">All fields</option>
                         {% for key, label in field_choices %}
                             <option value="{{ key }}" {% if selected_field == key %}selected{% endif %}>{{ label }}</option>
@@ -92,7 +92,9 @@
                         <p class="mb-0 mt-3">{{ message.message|truncatechars:600 }}</p>
                     </article>
                 {% empty %}
-                    <div class="message-card text-muted">No community posts yet.</div>
+                    <div class="message-card text-muted">
+                        No community posts yet. Use the form to ask for a lecture, old exam, or useful study resource.
+                    </div>
                 {% endfor %}
             </div>
         </div>

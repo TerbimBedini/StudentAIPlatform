@@ -187,7 +187,7 @@
                     <div class="eyebrow mb-2">Shared Academic Library</div>
                     <h1 class="display-6 fw-bold mb-2">Community Library</h1>
                     <p class="text-white-50 mb-0">
-                        Store old exams, lectures, notes, and study material by field. Student uploads stay private until review.
+                        Browse approved study resources, search by topic, and submit useful material for review.
                     </p>
                 </div>
                 <div class="d-flex gap-2 flex-wrap">
@@ -234,20 +234,20 @@
             </div>
 
             <form method="get" class="filter-grid mb-4">
-                <input class="form-control" type="search" name="q" value="{{ query }}" placeholder="Search course, title, topic...">
-                <select class="form-select" name="field">
+                <input class="form-control" type="search" name="q" value="{{ query }}" aria-label="Search library documents" placeholder="Search course, title, topic...">
+                <select class="form-select" name="field" aria-label="Filter by field">
                     <option value="">All fields</option>
                     {% for key, label in field_choices %}
                         <option value="{{ key }}" {% if selected_field == key %}selected{% endif %}>{{ label }}</option>
                     {% endfor %}
                 </select>
-                <select class="form-select" name="type">
+                <select class="form-select" name="type" aria-label="Filter by document type">
                     <option value="">All types</option>
                     {% for key, label in type_choices %}
                         <option value="{{ key }}" {% if selected_type == key %}selected{% endif %}>{{ label }}</option>
                     {% endfor %}
                 </select>
-                <select class="form-select" name="sort">
+                <select class="form-select" name="sort" aria-label="Sort library documents">
                     <option value="newest" {% if selected_sort == 'newest' %}selected{% endif %}>Newest</option>
                     <option value="oldest" {% if selected_sort == 'oldest' %}selected{% endif %}>Oldest</option>
                 </select>
@@ -299,6 +299,9 @@
             {% else %}
                 <div class="empty-state">
                     No approved documents found for this filter yet.
+                    <div class="mt-3">
+                        <a href="{% url 'library_upload' %}" class="btn btn-premium">Submit a document</a>
+                    </div>
                 </div>
             {% endif %}
         </div>
@@ -330,7 +333,12 @@
                     {% endfor %}
                 </div>
             {% else %}
-                <div class="empty-state">No community messages yet.</div>
+                <div class="empty-state">
+                    No community messages yet.
+                    <div class="mt-3">
+                        <a href="{% url 'community_chat' %}" class="btn btn-soft">Ask the community</a>
+                    </div>
+                </div>
             {% endif %}
         </div>
     </section>

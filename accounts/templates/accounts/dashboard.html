@@ -481,7 +481,7 @@
                 <div class="small-label text-white-50 mb-2">AI Learning Dashboard</div>
                 <h1 class="display-6 fw-bold mb-2">Mire se erdhe, {{ request.user.username }}</h1>
                 <p class="text-white-50 mb-0">
-                    Studio dokumentet, pyet AI, gjenero quiz-e dhe perserit me flashcards nga nje panel i vetem.
+                    Your study coach is ready. Start with the recommended action, then continue with documents, quizzes, flashcards, and exam practice.
                 </p>
             </div>
             <div class="col-lg-4">
@@ -499,6 +499,21 @@
 </section>
 
 <section class="row g-3 mb-4">
+    <div class="col-12">
+        <div class="glass-card score-card">
+            <div class="card-pad d-flex justify-content-between align-items-center gap-3 flex-wrap">
+                <div>
+                    <p class="stat-label mb-2">Recommended Next Step</p>
+                    <h2 class="h4 fw-bold mb-1">{{ next_study_action }}</h2>
+                    <p class="achievement-description mb-0">StudentAI updates this from your documents, quizzes, flashcards, and study sessions.</p>
+                </div>
+                <a href="{% url 'upload_document' %}" class="btn btn-premium px-4">
+                    <i class="bi bi-cloud-arrow-up me-1"></i> Upload Document
+                </a>
+            </div>
+        </div>
+    </div>
+
     <div class="col-sm-6 col-lg-4 col-xl-3">
         <div class="glass-card stat-card">
             <div class="card-pad">
@@ -911,7 +926,12 @@
                         {% endfor %}
                     </div>
                 {% else %}
-                    <div class="empty-state">No community messages yet.</div>
+                    <div class="empty-state">
+                        No community messages yet.
+                        <div class="mt-3">
+                            <a href="{% url 'community_chat' %}" class="btn btn-soft btn-sm">Post the first message</a>
+                        </div>
+                    </div>
                 {% endif %}
             </div>
             <div class="col-lg-6">
@@ -935,7 +955,12 @@
                         {% endfor %}
                     </div>
                 {% else %}
-                    <div class="empty-state">No approved library documents yet.</div>
+                    <div class="empty-state">
+                        No approved library documents yet.
+                        <div class="mt-3">
+                            <a href="{% url 'library_upload' %}" class="btn btn-soft btn-sm">Submit a resource</a>
+                        </div>
+                    </div>
                 {% endif %}
             </div>
         </div>
@@ -1068,7 +1093,10 @@
         {% else %}
             <div class="glass-card">
                 <div class="card-pad empty-state">
-                    Nuk ke ngarkuar ende dokumente. Ngarko PDF-in e pare per te filluar.
+                    No documents uploaded yet. Upload your first PDF or DOCX to unlock AI Summary, Tutor, Quiz, Flashcards, and Exam Simulator.
+                    <div class="mt-3">
+                        <a href="{% url 'upload_document' %}" class="btn btn-premium">Upload first document</a>
+                    </div>
                 </div>
             </div>
         {% endif %}
@@ -1119,7 +1147,7 @@
                     </div>
                 {% else %}
                     <div class="empty-state">
-                        Ende nuk ka aktivitete AI.
+                        No AI activity yet. Ask Tutor, generate a quiz, or practice flashcards from a document.
                     </div>
                 {% endif %}
             </div>
@@ -1289,11 +1317,11 @@
                             </div>
                         {% endfor %}
                     </div>
-                {% else %}
-                    <div class="empty-state">
-                        No weak topic recovery plan yet.
-                    </div>
-                {% endif %}
+                    {% else %}
+                        <div class="empty-state">
+                            No weak topic recovery plan yet. Complete a quiz so StudentAI can detect what needs review.
+                        </div>
+                    {% endif %}
             </div>
         </div>
 

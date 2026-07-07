@@ -50,6 +50,7 @@
     <section class="detail-card">
         <div class="card-pad">
             <h2 class="h5 fw-bold mb-3">AI Actions</h2>
+            <p class="text-muted mb-3">Use these actions when the library resource is connected to one of your study documents.</p>
             {% if linked_document %}
                 <div class="d-flex flex-wrap gap-2">
                     <a href="{% url 'study_document' linked_document.id %}" class="btn btn-primary rounded-3">Study with AI</a>
@@ -59,7 +60,7 @@
                 </div>
             {% else %}
                 <div class="alert alert-info rounded-4 mb-0">
-                    AI actions are available after this library resource is connected to a personal study document.
+                    AI actions are available after this library resource is connected to a personal study document. You can still open the file and submit your own copy from the library.
                 </div>
                 <div class="d-flex flex-wrap gap-2 mt-3">
                     <button class="btn btn-secondary rounded-3" disabled>Study with AI</button>
@@ -75,7 +76,7 @@
         <div class="card-pad">
             <h2 class="h5 fw-bold mb-3">Summary</h2>
             <p class="mb-0 text-muted">
-                Library summaries are shown when this shared resource is connected to a study document.
+                Library summaries are shown when this shared resource is connected to a study document and AI processing is available.
             </p>
         </div>
     </section>

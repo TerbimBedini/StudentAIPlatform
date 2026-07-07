@@ -208,12 +208,12 @@
             <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
                 <div>
                     <h2 class="h4 fw-bold mb-1">Document Quiz</h2>
-                    <p class="text-muted mb-0">Using cached text, searching document chunks, then generating a small quiz pack.</p>
+                    <p class="text-muted mb-0">Source: uploaded document. StudentAI samples document chunks, creates 5 questions, and varies the pack each time.</p>
                 </div>
                 <form method="POST" class="m-0 d-flex flex-wrap align-items-center gap-2" id="new-quiz-form">
                     {% csrf_token %}
                     <input type="hidden" name="action" value="new">
-                    <select class="form-select form-select-sm" name="difficulty" style="width: 150px;">
+                    <select class="form-select form-select-sm" name="difficulty" aria-label="Quiz difficulty" style="width: 150px;">
                         <option value="adaptive" {% if not quiz_strategy or quiz_strategy.requested_difficulty == 'adaptive' %}selected{% endif %}>Adaptive</option>
                         <option value="easy" {% if quiz_strategy.requested_difficulty == 'easy' %}selected{% endif %}>Easy</option>
                         <option value="medium" {% if quiz_strategy.requested_difficulty == 'medium' %}selected{% endif %}>Medium</option>
@@ -238,6 +238,7 @@
                     {% endif %}
                     · Focus:
                     {{ quiz_strategy.focus_topics|join:", " }}
+                    <span class="d-block text-muted mt-1">5 questions · document-grounded · shuffled choices</span>
                 </div>
             {% endif %}
 
@@ -326,7 +327,7 @@
                 </form>
             {% elif not error_message %}
                 <div class="empty-state">
-                    Click "Gjenero Quiz te ri" to generate a small quiz pack from document chunks.
+                    No quiz generated yet. Choose a difficulty and click "Gjenero Quiz te ri" to create 5 document-based questions.
                 </div>
             {% endif %}
         </div>
@@ -349,7 +350,7 @@
     if (newQuizForm && newQuizButton) {
         newQuizForm.addEventListener('submit', function () {
             newQuizButton.disabled = true;
-            newQuizButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Duke gjeneruar...';
+            newQuizButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Creating study questions...';
         });
     }
 </script>

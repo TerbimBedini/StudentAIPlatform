@@ -616,7 +616,7 @@
             <div class="eyebrow mb-2">AI Study Workspace</div>
             <h1 class="display-6 fw-bold mb-2">{{ document.title }}</h1>
             <p class="text-white-50 mb-0">
-                Summary, quiz, flashcards, and AI tutoring grounded in your uploaded document.
+                Summary, quiz, flashcards, and AI tutoring grounded only in your uploaded document.
             </p>
             <div class="hero-actions">
                 <button class="toggle-document-btn" type="button" aria-expanded="true">
@@ -695,7 +695,7 @@
                 {% endif %}
 
                 <div class="grounded-note">
-                    AI grounded in this document
+                    AI uses this uploaded document as its source. If generation is slow, wait a moment or try a shorter document.
                 </div>
             </div>
         </aside>
@@ -771,7 +771,7 @@
                     {% else %}
                         <div class="chat-thread">
                             <div class="empty-state">
-                                Ask a question to start a tutor session.
+                                Ask a question to start a tutor session. Try: "Explain the main idea", "What should I review?", or "Quiz me on this topic."
                             </div>
                         </div>
                     {% endif %}
@@ -785,10 +785,11 @@
                                 name="question"
                                 class="form-control chat-input"
                                 rows="4"
+                                aria-label="Ask StudentAI Tutor a question about this document"
                                 placeholder="Ask a topic, then answer the tutor's follow-up question..."
                             ></textarea>
 
-                            <button class="btn btn-premium w-100 mt-2" type="submit">
+                            <button class="btn btn-premium w-100 mt-2" type="submit" data-loading-text="Searching document context...">
                                 Ask Tutor
                             </button>
                         </div>
@@ -820,7 +821,7 @@
                             <span class="section-icon">Q</span>
                             <div>
                                 <h2 class="section-title">Quiz</h2>
-                                <p class="section-subtitle">Generated from this document</p>
+                                <p class="section-subtitle">Generated from selected chunks in this uploaded document. Questions may vary each time.</p>
                             </div>
                         </div>
 
@@ -879,7 +880,7 @@
                             {% endfor %}
 
                             {% if questions and not quiz_result %}
-                                <button type="submit" class="btn btn-premium">
+                                <button type="submit" class="btn btn-premium" data-loading-text="Checking answers...">
                                     Submit Quiz
                                 </button>
                             {% endif %}
@@ -893,7 +894,7 @@
                             <span class="section-icon">F</span>
                             <div>
                                 <h2 class="section-title">Flashcards</h2>
-                                <p class="section-subtitle">Active recall from this document</p>
+                                <p class="section-subtitle">Active recall from this document. Packs are small so you can practice quickly.</p>
                             </div>
                         </div>
 
@@ -935,12 +936,13 @@
                                             name="answer_{{ forloop.counter0 }}"
                                             class="form-control flashcard-answer"
                                             rows="3"
+                                            aria-label="Your flashcard answer"
                                             placeholder="Shkruaj pergjigjen tende..."
                                         ></textarea>
                                     </section>
                                 {% endfor %}
 
-                                <button type="submit" class="btn btn-premium">
+                                <button type="submit" class="btn btn-premium" data-loading-text="Checking flashcards...">
                                     Kontrollo pergjigjet
                                 </button>
                             </form>
@@ -1021,7 +1023,7 @@
 
         if (button) {
             button.disabled = true;
-            button.textContent = 'Working...';
+            button.textContent = button.dataset.loadingText || 'Generating from your document...';
         }
 
         try {

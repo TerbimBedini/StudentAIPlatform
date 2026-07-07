@@ -195,12 +195,12 @@
             <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
                 <div>
                     <h2 class="h4 fw-bold mb-1">Document Flashcards</h2>
-                    <p class="text-muted mb-0">Using cached text and document chunks to generate a concise flashcard pack.</p>
+                    <p class="text-muted mb-0">Source: uploaded document. StudentAI creates 5 focused cards from sampled chunks, so each pack can vary.</p>
                 </div>
                 <form method="POST" class="m-0 d-flex flex-wrap align-items-center gap-2" id="new-flashcards-form">
                     {% csrf_token %}
                     <input type="hidden" name="action" value="new">
-                    <select class="form-select form-select-sm" name="mode" style="width: 170px;">
+                    <select class="form-select form-select-sm" name="mode" aria-label="Flashcard mode" style="width: 170px;">
                         <option value="adaptive" {% if not flashcard_strategy or flashcard_strategy.requested_mode == 'adaptive' %}selected{% endif %}>Adaptive</option>
                         <option value="definitions" {% if flashcard_strategy.requested_mode == 'definitions' %}selected{% endif %}>Definitions</option>
                         <option value="concepts" {% if flashcard_strategy.requested_mode == 'concepts' %}selected{% endif %}>Concepts</option>
@@ -227,6 +227,7 @@
                     {% endif %}
                     · Focus:
                     {{ flashcard_strategy.focus_topics|join:", " }}
+                    <span class="d-block text-muted mt-1">5 cards · document-grounded · concise answers</span>
                 </div>
             {% endif %}
 
@@ -291,6 +292,7 @@
                                 name="answer_{{ forloop.counter0 }}"
                                 class="form-control flashcard-answer"
                                 rows="3"
+                                aria-label="Your flashcard answer"
                                 placeholder="Shkruaj pergjigjen tende..."
                             ></textarea>
                         </section>
@@ -302,7 +304,7 @@
                 </form>
             {% elif not error_message %}
                 <div class="empty-state">
-                    Click "Gjenero Flashcards te reja" to generate a concise flashcard pack from document chunks.
+                    No flashcards generated yet. Choose a mode and click "Gjenero Flashcards te reja" to create 5 cards from this document.
                 </div>
             {% endif %}
         </div>
@@ -325,7 +327,7 @@
     if (newFlashcardsForm && newFlashcardsButton) {
         newFlashcardsForm.addEventListener('submit', function () {
             newFlashcardsButton.disabled = true;
-            newFlashcardsButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Duke gjeneruar...';
+            newFlashcardsButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Generating from your document...';
         });
     }
 
