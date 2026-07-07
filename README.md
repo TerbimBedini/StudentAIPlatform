@@ -91,6 +91,19 @@ Create an admin user:
 python manage.py createsuperuser
 ```
 
+Create polished local demo data without Ollama:
+
+```powershell
+python manage.py create_demo_data
+```
+
+Demo login:
+
+```text
+username: demo
+password: demo12345
+```
+
 ## Run Locally
 
 ```powershell

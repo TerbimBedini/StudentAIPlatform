@@ -35,6 +35,19 @@ pip install -r requirements.txt
 python manage.py migrate
 ```
 
+### Create demo data
+
+```powershell
+python manage.py create_demo_data
+```
+
+Demo login:
+
+```text
+username: demo
+password: demo12345
+```
+
 ### Start Ollama
 
 Open a separate terminal:

@@ -7,6 +7,7 @@ from zipfile import ZipFile
 
 import fitz
 from django.contrib.auth.models import User
+from django.core.management import call_command
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.urls import reverse
@@ -14,10 +15,12 @@ from django.urls import reverse
 from .forms import DocumentForm, LibraryDocumentForm
 from .models import (
     Activity,
+    Achievement,
     CommunityMessage,
     Document,
     FlashcardAttempt,
     LibraryDocument,
+    Notification,
     QuizAttempt,
     StudySession,
 )
@@ -1760,3 +1763,42 @@ class DocumentTests(TestCase):
         self.assertContains(response, 'Super')
         self.assertContains(response, 'Grafiku i progresit')
         self.assertContains(response, 'Cfare duhet perseritur?')
+
+    def test_create_demo_data_command_is_idempotent(self):
+        call_command('create_demo_data')
+        call_command('create_demo_data')
+
+        demo_user = User.objects.get(username='demo')
+        self.assertTrue(demo_user.check_password('demo12345'))
+        self.assertEqual(
+            Document.objects.filter(uploaded_by=demo_user).count(),
+            3
+        )
+        self.assertEqual(
+            QuizAttempt.objects.filter(user=demo_user).count(),
+            3
+        )
+        self.assertEqual(
+            FlashcardAttempt.objects.filter(user=demo_user).count(),
+            3
+        )
+        self.assertEqual(
+            StudySession.objects.filter(user=demo_user).count(),
+            3
+        )
+        self.assertEqual(
+            Achievement.objects.filter(user=demo_user).count(),
+            3
+        )
+        self.assertEqual(
+            CommunityMessage.objects.filter(user=demo_user).count(),
+            2
+        )
+        self.assertEqual(
+            LibraryDocument.objects.filter(uploaded_by=demo_user).count(),
+            2
+        )
+        self.assertEqual(
+            Notification.objects.filter(user=demo_user).count(),
+            3
+        )
