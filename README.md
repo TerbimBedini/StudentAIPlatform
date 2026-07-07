@@ -103,6 +103,21 @@ Open:
 http://127.0.0.1:8000/
 ```
 
+## Deployment Notes
+
+StudentAI v1.0 is prepared for local demo use first. Before deploying beyond a local machine:
+
+- Set `DEBUG=False`.
+- Set a long, random `SECRET_KEY`.
+- Configure `ALLOWED_HOSTS` for the real domain.
+- Enable HTTPS at the proxy/platform level.
+- Set `DJANGO_SECURE_SSL_REDIRECT=True` when HTTPS is ready.
+- Set `DJANGO_SESSION_COOKIE_SECURE=True` and `DJANGO_CSRF_COOKIE_SECURE=True`.
+- Set a non-zero `DJANGO_SECURE_HSTS_SECONDS` only after HTTPS is confirmed.
+- Run `python manage.py collectstatic`.
+- Use PostgreSQL instead of SQLite for production traffic.
+- Keep Ollama private on a trusted network and do not expose it publicly.
+
 ## Tests
 
 Run Django checks and tests:
