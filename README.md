@@ -112,6 +112,13 @@ python manage.py check
 python manage.py test
 ```
 
+## Documentation
+
+- [Demo Guide](DEMO_GUIDE.md)
+- [Architecture Notes](docs/ARCHITECTURE.md)
+- [Mermaid Diagrams](docs/DIAGRAMS.md)
+- [Security Notes](docs/SECURITY_NOTES.md)
+
 ## Screenshots
 
 Add final demo screenshots here before publishing:
