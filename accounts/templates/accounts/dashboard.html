@@ -419,6 +419,35 @@
         text-align: center;
     }
 
+    .dashboard-details {
+        border: 1px solid var(--border);
+        border-radius: 22px;
+        background: var(--surface);
+        box-shadow: 0 18px 48px rgba(15, 23, 42, 0.08);
+        overflow: hidden;
+    }
+
+    .dashboard-details summary {
+        cursor: pointer;
+        list-style: none;
+        padding: 18px 22px;
+        font-weight: 900;
+    }
+
+    .dashboard-details summary::-webkit-details-marker {
+        display: none;
+    }
+
+    .dashboard-details summary::after {
+        content: "+";
+        float: right;
+        color: var(--muted);
+    }
+
+    .dashboard-details[open] summary::after {
+        content: "-";
+    }
+
     .status-badge {
         display: inline-flex;
         align-items: center;
@@ -500,6 +529,461 @@
     <div class="hero-content p-4 p-lg-5">
         <div class="row align-items-center g-4">
             <div class="col-lg-8">
+                <div class="small-label text-white-50 mb-2">StudentAI Command Center</div>
+                <h1 class="display-6 fw-bold mb-2">Mire se erdhe, {{ request.user.username }}</h1>
+                {% if documents_count %}
+                    <p class="text-white-50 mb-0">
+                        {{ today_focus|default:"Continue learning from your uploaded documents." }}
+                    </p>
+                {% else %}
+                    <p class="text-white-50 mb-0">
+                        Upload your first document to unlock AI Summary, AI Tutor, Quiz, Flashcards, and Exam Simulator.
+                    </p>
+                {% endif %}
+            </div>
+            <div class="col-lg-4">
+                <div class="d-flex flex-wrap justify-content-lg-end gap-2">
+                    {% if recommended_document %}
+                        <a href="{% url 'study_document' recommended_document.id %}" class="btn btn-light rounded-pill px-4">
+                            <i class="bi bi-play-circle me-1"></i> Continue Learning
+                        </a>
+                    {% elif documents_count %}
+                        <a href="{% url 'documents_list' %}" class="btn btn-light rounded-pill px-4">
+                            <i class="bi bi-folder2-open me-1"></i> Continue Learning
+                        </a>
+                    {% else %}
+                        <a href="{% url 'upload_document' %}" class="btn btn-light rounded-pill px-4">
+                            <i class="bi bi-cloud-arrow-up me-1"></i> Upload your first document
+                        </a>
+                    {% endif %}
+                    <a href="{% url 'upload_document' %}" class="btn btn-outline-light rounded-pill px-4">
+                        <i class="bi bi-plus-lg me-1"></i> Upload Document
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="mb-4">
+    <div class="section-heading">
+        <div>
+            <p class="small-label mb-1">Progress</p>
+            <h2 class="section-title">Learning Snapshot</h2>
+        </div>
+        <span class="badge text-bg-light">4 key metrics</span>
+    </div>
+    <div class="row g-3">
+        <div class="col-sm-6 col-xl-3">
+            <div class="glass-card stat-card score-card">
+                <div class="card-pad">
+                    <div class="d-flex justify-content-between align-items-start gap-3">
+                        <div>
+                            <p class="stat-label">Knowledge Score</p>
+                            <h2 class="stat-value">{{ knowledge_score }}/100</h2>
+                            <p class="stat-label mt-1">Student Score: +{{ total_points }}</p>
+                        </div>
+                        <span class="stat-icon"><i class="bi bi-trophy"></i></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <a href="{% url 'exam_preparation' %}" class="text-decoration-none text-reset">
+                <div class="glass-card stat-card">
+                    <div class="card-pad">
+                        <div class="d-flex justify-content-between align-items-start gap-3">
+                            <div>
+                                <p class="stat-label">Exam Readiness</p>
+                                <h2 class="stat-value">{{ exam_readiness|floatformat:0 }}%</h2>
+                                <p class="stat-label mt-1">Prediction: {{ predicted_exam_score|floatformat:0 }}%</p>
+                            </div>
+                            <span class="stat-icon"><i class="bi bi-mortarboard"></i></span>
+                        </div>
+                    </div>
+                </div>
+            </a>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <div class="glass-card stat-card">
+                <div class="card-pad">
+                    <div class="d-flex justify-content-between align-items-start gap-3">
+                        <div>
+                            <p class="stat-label">Study Streak</p>
+                            <h2 class="stat-value">{{ dashboard_analytics.learning_streak }} days</h2>
+                            <p class="stat-label mt-1">Consistency: {{ study_consistency }}%</p>
+                        </div>
+                        <span class="stat-icon"><i class="bi bi-calendar-check"></i></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <div class="glass-card stat-card">
+                <div class="card-pad">
+                    <div class="d-flex justify-content-between align-items-start gap-3">
+                        <div>
+                            <p class="stat-label">Quiz Accuracy</p>
+                            <h2 class="stat-value">{{ average_quiz_score|floatformat:1 }}%</h2>
+                            <p class="stat-label mt-1">{{ quiz_attempts_count }} attempts</p>
+                        </div>
+                        <span class="stat-icon"><i class="bi bi-clipboard2-check"></i></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="glass-card mb-4">
+    <div class="card-pad">
+        <div class="section-heading mb-3">
+            <div>
+                <p class="small-label mb-1">Coach</p>
+                <h2 class="section-title">Recommended Next Step</h2>
+            </div>
+            <span class="badge bg-primary-subtle text-primary">Today</span>
+        </div>
+        <div class="row g-3 align-items-stretch">
+            <div class="col-md-6 col-xl-3">
+                <div class="activity-card h-100">
+                    <p class="stat-label mb-1">Today's Focus</p>
+                    <p class="fw-bold mb-0">{{ today_focus|default:"Start with one focused study session." }}</p>
+                </div>
+            </div>
+            <div class="col-md-6 col-xl-3">
+                <div class="activity-card h-100">
+                    <p class="stat-label mb-1">Next Best Action</p>
+                    <p class="fw-bold mb-0">{{ recommended_action|default:next_study_action }}</p>
+                </div>
+            </div>
+            <div class="col-md-6 col-xl-3">
+                <div class="activity-card h-100">
+                    <p class="stat-label mb-1">Recommended Study Duration</p>
+                    <p class="fw-bold mb-0">{{ recommended_study_duration|default:"30 minutes" }}</p>
+                </div>
+            </div>
+            <div class="col-md-6 col-xl-3">
+                <div class="activity-card h-100">
+                    <p class="stat-label mb-1">Weakest Topic</p>
+                    <p class="fw-bold mb-0">{{ weakest_topic|default:"No weak topic detected yet." }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="d-flex flex-wrap gap-2 mt-4">
+            {% if recommended_document %}
+                <a href="{% url 'study_document' recommended_document.id %}" class="btn btn-premium px-4">
+                    <i class="bi bi-journal-text me-1"></i> Study {{ recommended_document.title|truncatechars:28 }}
+                </a>
+            {% elif documents_count %}
+                <a href="{% url 'documents_list' %}" class="btn btn-premium px-4">
+                    <i class="bi bi-folder2-open me-1"></i> Choose a Document
+                </a>
+            {% else %}
+                <a href="{% url 'upload_document' %}" class="btn btn-premium px-4">
+                    <i class="bi bi-cloud-arrow-up me-1"></i> Upload your first document
+                </a>
+            {% endif %}
+            <a href="{% url 'study_plan' %}" class="btn btn-soft px-4">
+                <i class="bi bi-list-check me-1"></i> Study Plan
+            </a>
+        </div>
+    </div>
+</section>
+
+<section class="mb-4">
+    <div class="section-heading">
+        <div>
+            <p class="small-label mb-1">Advanced Analytics</p>
+            <h2 class="section-title">Learning Progress</h2>
+        </div>
+        <span class="badge text-bg-light">Analytics Visuals</span>
+    </div>
+    <div class="row g-3">
+        <div class="col-lg-4">
+            <div class="glass-card chart-card h-100">
+                <div class="card-pad">
+                    <h3 class="h6 fw-bold mb-1">Quiz Accuracy Trend</h3>
+                    <p class="achievement-description">Tracks how your quiz performance changes over time.</p>
+                    {% if dashboard_analytics.quiz_accuracy_trend.points %}
+                        <div class="chart-shell">
+                            <canvas id="quizAccuracyChart" aria-label="Quiz accuracy trend chart"></canvas>
+                        </div>
+                    {% else %}
+                        <div class="empty-state">No quiz history yet. Generate your first quiz to start a trend.</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="glass-card chart-card h-100">
+                <div class="card-pad">
+                    <h3 class="h6 fw-bold mb-1">Weekly Study Activity</h3>
+                    <p class="achievement-description">Shows how many focused hours you completed this week.</p>
+                    <div class="chart-shell">
+                        <canvas id="weeklyStudyChart" aria-label="Weekly study hours chart"></canvas>
+                    </div>
+                    {% if not dashboard_analytics.weekly_study_hours %}
+                        <div class="empty-state mt-3">Start a study session to log study time.</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="glass-card chart-card h-100">
+                <div class="card-pad">
+                    <h3 class="h6 fw-bold mb-1">Exam Readiness Trend</h3>
+                    <p class="achievement-description">Combines quiz accuracy, study activity, and knowledge score.</p>
+                    <div class="chart-shell">
+                        <canvas id="examReadinessChart" aria-label="Exam readiness chart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <details class="dashboard-details mt-3">
+        <summary>View Detailed Analytics</summary>
+        <div class="row g-3">
+            <div class="col-md-6 col-xl-3">
+                <div class="activity-card h-100">
+                    <p class="stat-label mb-1">Weekly Study Hours</p>
+                    <p class="fw-bold mb-0">{{ dashboard_analytics.weekly_study_hours|floatformat:1 }} hours</p>
+                </div>
+            </div>
+            <div class="col-md-6 col-xl-3">
+                <div class="activity-card h-100">
+                    <p class="stat-label mb-1">Flashcard Success</p>
+                    <p class="fw-bold mb-0">{{ dashboard_analytics.flashcard_success_rate.current|floatformat:1 }}%</p>
+                </div>
+            </div>
+            <div class="col-md-6 col-xl-3">
+                <div class="activity-card h-100">
+                    <p class="stat-label mb-1">Knowledge Growth</p>
+                    <p class="fw-bold mb-0">+{{ dashboard_analytics.knowledge_growth.growth|floatformat:0 }}</p>
+                </div>
+            </div>
+            <div class="col-md-6 col-xl-3">
+                <div class="activity-card h-100">
+                    <p class="stat-label mb-1">Learning Streak</p>
+                    <p class="fw-bold mb-0">{{ dashboard_analytics.learning_streak }} days</p>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="glass-card chart-card h-100">
+                    <div class="card-pad">
+                        <h3 class="h6 fw-bold mb-2">Weak Topics</h3>
+                        {% if dashboard_analytics.weak_topics_chart %}
+                            <div class="chart-shell mb-3">
+                                <canvas id="weakTopicsChart" aria-label="Weak topics chart"></canvas>
+                            </div>
+                            <div class="activity-list">
+                                {% for topic in dashboard_analytics.weak_topics_chart %}
+                                    <div class="activity-card">
+                                        <strong>{{ topic.topic }} - {{ topic.value|floatformat:1 }}%</strong>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <div class="empty-state">No weak topics detected yet.</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="glass-card chart-card h-100">
+                    <div class="card-pad">
+                        <h3 class="h6 fw-bold mb-2">Strong Topics</h3>
+                        {% if dashboard_analytics.strong_topics_chart %}
+                            <div class="chart-shell mb-3">
+                                <canvas id="strongTopicsChart" aria-label="Strong topics chart"></canvas>
+                            </div>
+                            <div class="activity-list">
+                                {% for topic in dashboard_analytics.strong_topics_chart %}
+                                    <div class="activity-card">
+                                        <strong>{{ topic.topic }} - {{ topic.value|floatformat:1 }}%</strong>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <div class="empty-state">Strong topics will appear after consistent quiz results.</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </details>
+</section>
+
+<section class="row g-4 mb-4">
+    <div class="col-lg-7">
+        <div class="glass-card h-100">
+            <div class="card-pad">
+                <div class="section-heading mb-3">
+                    <div>
+                        <p class="small-label mb-1">History</p>
+                        <h2 class="section-title">Recent Activity</h2>
+                    </div>
+                </div>
+                {% if activities %}
+                    <div class="activity-list">
+                        {% for activity in activities|slice:":5" %}
+                            <div class="activity-card">
+                                <div class="d-flex justify-content-between gap-3">
+                                    <div>
+                                        <p class="achievement-title mb-1">{{ activity.title }}</p>
+                                        <p class="achievement-description mb-0">{{ activity.description|truncatechars:110 }}</p>
+                                    </div>
+                                    <span class="activity-meta text-nowrap">+{{ activity.points }}</span>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="empty-state">
+                        No recent activity yet. Upload a document, ask the tutor, or generate a quiz to begin.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-5">
+        <div class="glass-card h-100">
+            <div class="card-pad">
+                <div class="section-heading mb-3">
+                    <div>
+                        <p class="small-label mb-1">Motivation</p>
+                        <h2 class="section-title">Achievements</h2>
+                    </div>
+                    <span class="badge text-bg-light">{{ achievements_count }} earned</span>
+                </div>
+                {% if recent_achievements %}
+                    <div class="achievement-list">
+                        {% for achievement in recent_achievements|slice:":3" %}
+                            <div class="achievement-card">
+                                <span class="achievement-badge"><i class="bi {{ achievement.icon }}"></i></span>
+                                <div>
+                                    <div class="d-flex align-items-center gap-2 mb-1">
+                                        <p class="achievement-title mb-0">{{ achievement.title }}</p>
+                                        <span class="badge bg-success">Earned</span>
+                                    </div>
+                                    <p class="achievement-description mb-0">{{ achievement.description|truncatechars:90 }}</p>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% elif achievement_progress %}
+                    <p class="achievement-description mb-3">Achievement Progress</p>
+                    <div class="achievement-list">
+                        {% for achievement in achievement_progress|slice:":3" %}
+                            <div class="achievement-card">
+                                <span class="achievement-badge"><i class="bi {{ achievement.icon }}"></i></span>
+                                <div class="min-w-0 w-100">
+                                    <div class="d-flex justify-content-between gap-2">
+                                        <p class="achievement-title mb-1">{{ achievement.title }}</p>
+                                        {% if achievement.earned %}
+                                            <span class="badge bg-success">Earned</span>
+                                        {% else %}
+                                            <span class="activity-meta">{{ achievement.current|floatformat:0 }}/{{ achievement.target|floatformat:0 }}</span>
+                                        {% endif %}
+                                    </div>
+                                    <div class="progress" style="height: 8px;">
+                                        <div class="progress-bar js-progress-bar {% if achievement.earned %}bg-success{% endif %}" data-progress-value="{{ achievement.percentage }}"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="empty-state">No achievements yet. Complete your first learning action to earn one.</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="glass-card mb-4">
+    <div class="card-pad">
+        <div class="section-heading mb-3">
+            <div>
+                <p class="small-label mb-1">Shortcuts</p>
+                <h2 class="section-title">Quick Navigation</h2>
+            </div>
+        </div>
+        <div class="row g-3">
+            <div class="col-sm-6 col-xl-3">
+                <a href="{% url 'documents_list' %}" class="btn btn-soft w-100 text-start p-3">
+                    <i class="bi bi-folder2-open me-2"></i> My Documents
+                </a>
+            </div>
+            <div class="col-sm-6 col-xl-3">
+                {% if recommended_document %}
+                    <a href="{% url 'study_document' recommended_document.id %}" class="btn btn-soft w-100 text-start p-3">
+                        <i class="bi bi-journal-text me-2"></i> Study Mode
+                    </a>
+                {% else %}
+                    <a href="{% url 'upload_document' %}" class="btn btn-soft w-100 text-start p-3">
+                        <i class="bi bi-journal-text me-2"></i> Study Mode
+                    </a>
+                {% endif %}
+            </div>
+            <div class="col-sm-6 col-xl-3">
+                {% if recommended_document %}
+                    <a href="{% url 'document_quiz' recommended_document.id %}" class="btn btn-soft w-100 text-start p-3">
+                        <i class="bi bi-question-circle me-2"></i> Quiz
+                    </a>
+                {% else %}
+                    <a href="{% url 'upload_document' %}" class="btn btn-soft w-100 text-start p-3">
+                        <i class="bi bi-question-circle me-2"></i> Quiz
+                    </a>
+                {% endif %}
+            </div>
+            <div class="col-sm-6 col-xl-3">
+                {% if recommended_document %}
+                    <a href="{% url 'document_flashcards' recommended_document.id %}" class="btn btn-soft w-100 text-start p-3">
+                        <i class="bi bi-card-text me-2"></i> Flashcards
+                    </a>
+                {% else %}
+                    <a href="{% url 'upload_document' %}" class="btn btn-soft w-100 text-start p-3">
+                        <i class="bi bi-card-text me-2"></i> Flashcards
+                    </a>
+                {% endif %}
+            </div>
+            <div class="col-sm-6 col-xl-3">
+                {% if recommended_document %}
+                    <a href="{% url 'exam_simulator' recommended_document.id %}" class="btn btn-soft w-100 text-start p-3">
+                        <i class="bi bi-mortarboard me-2"></i> Exam Simulator
+                    </a>
+                {% else %}
+                    <a href="{% url 'upload_document' %}" class="btn btn-soft w-100 text-start p-3">
+                        <i class="bi bi-mortarboard me-2"></i> Exam Simulator
+                    </a>
+                {% endif %}
+            </div>
+            <div class="col-sm-6 col-xl-3">
+                <a href="{% url 'library_home' %}" class="btn btn-soft w-100 text-start p-3">
+                    <i class="bi bi-building me-2"></i> AI Library
+                </a>
+            </div>
+            <div class="col-sm-6 col-xl-3">
+                <a href="{% url 'community_chat' %}" class="btn btn-soft w-100 text-start p-3">
+                    <i class="bi bi-people me-2"></i> Community
+                </a>
+            </div>
+            <div class="col-sm-6 col-xl-3">
+                <a href="{% url 'multi_document_study' %}" class="btn btn-soft w-100 text-start p-3">
+                    <i class="bi bi-collection me-2"></i> Multi Study
+                </a>
+            </div>
+        </div>
+    </div>
+</section>
+
+{% comment %}The previous dashboard sections are preserved for reference but no longer rendered.
+<section class="hero-panel mb-4">
+    <div class="hero-content p-4 p-lg-5">
+        <div class="row align-items-center g-4">
+            <div class="col-lg-8">
                 <div class="small-label text-white-50 mb-2">AI Learning Dashboard</div>
                 <h1 class="display-6 fw-bold mb-2">Mire se erdhe, {{ request.user.username }}</h1>
                 <p class="text-white-50 mb-0">
@@ -536,120 +1020,7 @@
         </div>
     </div>
 
-    <div class="col-sm-6 col-lg-4 col-xl-3">
-        <div class="glass-card stat-card">
-            <div class="card-pad">
-                <div class="d-flex justify-content-between align-items-start gap-3">
-                    <div>
-                        <p class="stat-label">Documents</p>
-                        <h2 class="stat-value">{{ documents_count }}</h2>
-                    </div>
-                    <span class="stat-icon"><i class="bi bi-file-earmark-text"></i></span>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="col-sm-6 col-lg-4 col-xl-3">
-        <div class="glass-card stat-card">
-            <div class="card-pad">
-                <div class="d-flex justify-content-between align-items-start gap-3">
-                    <div>
-                        <p class="stat-label">Achievements</p>
-                        <h2 class="stat-value">{{ achievements_count }}</h2>
-                    </div>
-                    <span class="stat-icon"><i class="bi bi-award"></i></span>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="col-sm-6 col-lg-4 col-xl-3">
-        <div class="glass-card stat-card">
-            <div class="card-pad">
-                <div class="d-flex justify-content-between align-items-start gap-3">
-                    <div>
-                        <p class="stat-label">Study Sessions</p>
-                        <h2 class="stat-value">{{ total_study_sessions }}</h2>
-                        <p class="stat-label mt-1">{{ active_study_sessions }} active</p>
-                    </div>
-                    <span class="stat-icon"><i class="bi bi-play-circle"></i></span>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="col-sm-6 col-lg-4 col-xl-3">
-        <div class="glass-card stat-card">
-            <div class="card-pad">
-                <div class="d-flex justify-content-between align-items-start gap-3">
-                    <div>
-                        <p class="stat-label">AI Summaries</p>
-                        <h2 class="stat-value">{{ summaries_count }}</h2>
-                    </div>
-                    <span class="stat-icon"><i class="bi bi-card-text"></i></span>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="col-sm-6 col-lg-4 col-xl-3">
-        <div class="glass-card stat-card">
-            <div class="card-pad">
-                <div class="d-flex justify-content-between align-items-start gap-3">
-                    <div>
-                        <p class="stat-label">Quizzes</p>
-                        <h2 class="stat-value">{{ quizzes_count }}</h2>
-                    </div>
-                    <span class="stat-icon"><i class="bi bi-ui-checks-grid"></i></span>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="col-sm-6 col-lg-4 col-xl-3">
-        <div class="glass-card stat-card">
-            <div class="card-pad">
-                <div class="d-flex justify-content-between align-items-start gap-3">
-                    <div>
-                        <p class="stat-label">Flashcards</p>
-                        <h2 class="stat-value">{{ flashcards_count }}</h2>
-                    </div>
-                    <span class="stat-icon"><i class="bi bi-layers"></i></span>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="col-sm-6 col-lg-4 col-xl-3">
-        <div class="glass-card stat-card">
-            <div class="card-pad">
-                <div class="d-flex justify-content-between align-items-start gap-3">
-                    <div>
-                        <p class="stat-label">Average Quiz</p>
-                        <h2 class="stat-value">{{ average_quiz_score }}%</h2>
-                    </div>
-                    <span class="stat-icon"><i class="bi bi-bar-chart-line"></i></span>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="col-sm-6 col-lg-4 col-xl-3">
-        <div class="glass-card stat-card">
-            <div class="card-pad">
-                <div class="d-flex justify-content-between align-items-start gap-3">
-                    <div>
-                        <p class="stat-label">Improvement</p>
-                        <h2 class="stat-value">{{ improvement_rate }}%</h2>
-                    </div>
-                    <span class="stat-icon"><i class="bi bi-graph-up-arrow"></i></span>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="col-sm-6 col-lg-4 col-xl-3">
+    <div class="col-sm-6 col-xl-3">
         <div class="glass-card stat-card score-card">
             <div class="card-pad">
                 <div class="d-flex justify-content-between align-items-start gap-3">
@@ -664,21 +1035,67 @@
         </div>
     </div>
 
-    <div class="col-sm-6 col-lg-4 col-xl-3">
+    <div class="col-sm-6 col-xl-3">
         <a href="{% url 'exam_preparation' %}" class="text-decoration-none text-reset">
             <div class="glass-card stat-card">
                 <div class="card-pad">
                     <div class="d-flex justify-content-between align-items-start gap-3">
                         <div>
-                            <p class="stat-label">Exam Preparation Center</p>
-                            <h2 class="stat-value">{{ predicted_exam_score }}%</h2>
-                            <p class="stat-label mt-1">Predicted Exam Score</p>
+                            <p class="stat-label">Exam Readiness</p>
+                            <h2 class="stat-value">{{ exam_readiness|floatformat:0 }}%</h2>
                         </div>
                         <span class="stat-icon"><i class="bi bi-mortarboard"></i></span>
                     </div>
                 </div>
             </div>
         </a>
+    </div>
+
+    <div class="col-sm-6 col-xl-3">
+        <div class="glass-card stat-card">
+            <div class="card-pad">
+                <div class="d-flex justify-content-between align-items-start gap-3">
+                    <div>
+                        <p class="stat-label">Study Streak</p>
+                        <h2 class="stat-value">{{ dashboard_analytics.learning_streak }}</h2>
+                        <p class="stat-label mt-1">days</p>
+                    </div>
+                    <span class="stat-icon"><i class="bi bi-fire"></i></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-sm-6 col-xl-3">
+        <div class="glass-card stat-card">
+            <div class="card-pad">
+                <div class="d-flex justify-content-between align-items-start gap-3">
+                    <div>
+                        <p class="stat-label">Quiz Accuracy</p>
+                        <h2 class="stat-value">{{ average_quiz_score }}%</h2>
+                    </div>
+                    <span class="stat-icon"><i class="bi bi-bar-chart-line"></i></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12">
+        <details class="dashboard-details">
+            <summary>Workspace details</summary>
+            <div class="card-pad pt-0">
+                <div class="row g-3">
+                    <div class="col-sm-6 col-lg-3"><div class="achievement-card h-100"><span class="achievement-badge"><i class="bi bi-file-earmark-text"></i></span><div><p class="achievement-title">Documents</p><p class="achievement-description mb-0">{{ documents_count }}</p></div></div></div>
+                    <div class="col-sm-6 col-lg-3"><div class="achievement-card h-100"><span class="achievement-badge"><i class="bi bi-award"></i></span><div><p class="achievement-title">Achievements</p><p class="achievement-description mb-0">{{ achievements_count }}</p></div></div></div>
+                    <div class="col-sm-6 col-lg-3"><div class="achievement-card h-100"><span class="achievement-badge"><i class="bi bi-play-circle"></i></span><div><p class="achievement-title">Study Sessions</p><p class="achievement-description mb-0">{{ total_study_sessions }} total, {{ active_study_sessions }} active</p></div></div></div>
+                    <div class="col-sm-6 col-lg-3"><div class="achievement-card h-100"><span class="achievement-badge"><i class="bi bi-card-text"></i></span><div><p class="achievement-title">AI Summaries</p><p class="achievement-description mb-0">{{ summaries_count }}</p></div></div></div>
+                    <div class="col-sm-6 col-lg-3"><div class="achievement-card h-100"><span class="achievement-badge"><i class="bi bi-ui-checks-grid"></i></span><div><p class="achievement-title">Quizzes</p><p class="achievement-description mb-0">{{ quizzes_count }}</p></div></div></div>
+                    <div class="col-sm-6 col-lg-3"><div class="achievement-card h-100"><span class="achievement-badge"><i class="bi bi-layers"></i></span><div><p class="achievement-title">Flashcards</p><p class="achievement-description mb-0">{{ flashcards_count }}</p></div></div></div>
+                    <div class="col-sm-6 col-lg-3"><div class="achievement-card h-100"><span class="achievement-badge"><i class="bi bi-graph-up-arrow"></i></span><div><p class="achievement-title">Improvement</p><p class="achievement-description mb-0">{{ improvement_rate }}%</p></div></div></div>
+                    <div class="col-sm-6 col-lg-3"><div class="achievement-card h-100"><span class="achievement-badge"><i class="bi bi-mortarboard"></i></span><div><p class="achievement-title">Predicted Exam</p><p class="achievement-description mb-0">{{ predicted_exam_score }}%</p></div></div></div>
+                </div>
+            </div>
+        </details>
     </div>
 </section>
 
@@ -806,7 +1223,8 @@
     </div>
 </div>
 
-<div class="glass-card mb-4">
+<details class="dashboard-details mb-4">
+    <summary>Full analytics details</summary>
     <div class="card-pad">
         <div class="row g-3">
             <div class="col-md-4">
@@ -816,7 +1234,7 @@
                         <p class="achievement-title">Weekly Study Hours</p>
                         <p class="achievement-description mb-2">{{ dashboard_analytics.weekly_study_hours|floatformat:1 }} hours</p>
                         <div class="progress" style="height: 8px;">
-                            <div class="progress-bar" style="width: {{ dashboard_analytics.weekly_study_hours }}%;"></div>
+                            <div class="progress-bar js-progress-bar" data-progress-value="{{ dashboard_analytics.weekly_study_hours }}"></div>
                         </div>
                     </div>
                 </div>
@@ -828,7 +1246,7 @@
                         <p class="achievement-title">Quiz Accuracy</p>
                         <p class="achievement-description mb-2">{{ dashboard_analytics.quiz_accuracy_trend.current|floatformat:1 }}%</p>
                         <div class="progress" style="height: 8px;">
-                            <div class="progress-bar" style="width: {{ dashboard_analytics.quiz_accuracy_trend.current }}%;"></div>
+                            <div class="progress-bar js-progress-bar" data-progress-value="{{ dashboard_analytics.quiz_accuracy_trend.current }}"></div>
                         </div>
                     </div>
                 </div>
@@ -840,7 +1258,7 @@
                         <p class="achievement-title">Flashcard Success</p>
                         <p class="achievement-description mb-2">{{ dashboard_analytics.flashcard_success_rate.current|floatformat:1 }}%</p>
                         <div class="progress" style="height: 8px;">
-                            <div class="progress-bar" style="width: {{ dashboard_analytics.flashcard_success_rate.current }}%;"></div>
+                            <div class="progress-bar js-progress-bar" data-progress-value="{{ dashboard_analytics.flashcard_success_rate.current }}"></div>
                         </div>
                     </div>
                 </div>
@@ -866,7 +1284,7 @@
                         <p class="achievement-title">Exam Readiness</p>
                         <p class="achievement-description mb-2">{{ dashboard_analytics.exam_readiness_trend.current|floatformat:1 }}%</p>
                         <div class="progress" style="height: 8px;">
-                            <div class="progress-bar" style="width: {{ dashboard_analytics.exam_readiness_trend.current }}%;"></div>
+                            <div class="progress-bar js-progress-bar" data-progress-value="{{ dashboard_analytics.exam_readiness_trend.current }}"></div>
                         </div>
                     </div>
                 </div>
@@ -912,7 +1330,7 @@
             </div>
         </div>
     </div>
-</div>
+</details>
 
 <div class="glass-card mb-4">
     <div class="card-pad">
@@ -969,37 +1387,48 @@
                 </div>
             </div>
 
-            <div class="col-lg-6">
-                <div class="achievement-card analytics-chart-card h-100 d-block">
-                    <p class="achievement-title">Weak Topics</p>
-                    <p class="achievement-description mb-3">Topics under 60% average quiz performance.</p>
-                    {% if dashboard_analytics.weak_topics_chart %}
-                        <div class="chart-wrap">
-                            <canvas id="weakTopicsChart" aria-label="Weak topics chart" role="img"></canvas>
-                        </div>
-                    {% else %}
-                        <div class="empty-state chart-empty">No weak topics detected yet. Complete more quizzes for topic diagnosis.</div>
-                    {% endif %}
-                </div>
-            </div>
+            <div class="col-12">
+                <details class="dashboard-details">
+                    <summary>Weak and strong topic charts</summary>
+                    <div class="card-pad pt-0">
+                        <div class="row g-3">
+                            <div class="col-lg-6">
+                                <div class="achievement-card analytics-chart-card h-100 d-block">
+                                    <p class="achievement-title">Weak Topics</p>
+                                    <p class="achievement-description mb-3">Topics under 60% average quiz performance.</p>
+                                    {% if dashboard_analytics.weak_topics_chart %}
+                                        <div class="chart-wrap">
+                                            <canvas id="weakTopicsChart" aria-label="Weak topics chart" role="img"></canvas>
+                                        </div>
+                                    {% else %}
+                                        <div class="empty-state chart-empty">No weak topics detected yet. Complete more quizzes for topic diagnosis.</div>
+                                    {% endif %}
+                                </div>
+                            </div>
 
-            <div class="col-lg-6">
-                <div class="achievement-card analytics-chart-card h-100 d-block">
-                    <p class="achievement-title">Strong Topics</p>
-                    <p class="achievement-description mb-3">Topics at or above 80% average quiz performance.</p>
-                    {% if dashboard_analytics.strong_topics_chart %}
-                        <div class="chart-wrap">
-                            <canvas id="strongTopicsChart" aria-label="Strong topics chart" role="img"></canvas>
+                            <div class="col-lg-6">
+                                <div class="achievement-card analytics-chart-card h-100 d-block">
+                                    <p class="achievement-title">Strong Topics</p>
+                                    <p class="achievement-description mb-3">Topics at or above 80% average quiz performance.</p>
+                                    {% if dashboard_analytics.strong_topics_chart %}
+                                        <div class="chart-wrap">
+                                            <canvas id="strongTopicsChart" aria-label="Strong topics chart" role="img"></canvas>
+                                        </div>
+                                    {% else %}
+                                        <div class="empty-state chart-empty">No strong topics yet. A high quiz score will reveal strengths here.</div>
+                                    {% endif %}
+                                </div>
+                            </div>
                         </div>
-                    {% else %}
-                        <div class="empty-state chart-empty">No strong topics yet. A high quiz score will reveal strengths here.</div>
-                    {% endif %}
-                </div>
+                    </div>
+                </details>
             </div>
         </div>
     </div>
 </div>
 
+<details class="dashboard-details mb-4">
+    <summary>Community and AI Library preview</summary>
 <div class="section-heading">
     <div>
         <h2 class="section-title">Community</h2>
@@ -1074,6 +1503,7 @@
         </div>
     </div>
 </div>
+</details>
 
 <div class="section-heading">
     <div>
@@ -1211,6 +1641,8 @@
     </section>
 
     <aside class="col-xl-4 dashboard-side">
+        <details class="dashboard-details mb-4">
+            <summary>Recent Activity</summary>
         <div class="section-heading">
             <div>
                 <h2 class="section-title">Aktivitetet e Fundit</h2>
@@ -1260,6 +1692,7 @@
                 {% endif %}
             </div>
         </div>
+        </details>
 
         <div class="section-heading">
             <div>
@@ -1473,6 +1906,8 @@
             </div>
         </div>
 
+        <details class="dashboard-details mb-4">
+            <summary>Achievements</summary>
         <div class="section-heading">
             <div>
                 <h2 class="section-title">Achievements</h2>
@@ -1523,7 +1958,7 @@
                                         </div>
                                         <p class="achievement-description mb-2">{{ achievement.description }}</p>
                                         <div class="progress" style="height: 8px;">
-                                            <div class="progress-bar {% if achievement.earned %}bg-success{% endif %}" style="width: {{ achievement.percentage }}%;"></div>
+                                            <div class="progress-bar js-progress-bar {% if achievement.earned %}bg-success{% endif %}" data-progress-value="{{ achievement.percentage }}"></div>
                                         </div>
                                     </div>
                                 </div>
@@ -1537,13 +1972,20 @@
                 </div>
             </div>
         </div>
+        </details>
 
     </aside>
 </div>
+{% endcomment %}
 {{ dashboard_analytics|json_script:"dashboard-analytics-data" }}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
     (function () {
+        document.querySelectorAll('.js-progress-bar').forEach((bar) => {
+            const value = Math.max(0, Math.min(100, Number(bar.dataset.progressValue) || 0));
+            bar.style.width = `${value}%`;
+        });
+
         const dataScript = document.getElementById('dashboard-analytics-data');
         if (!dataScript || !window.Chart) {
             return;

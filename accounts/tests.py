@@ -10,6 +10,7 @@ from documents.models import (
     CommunityMessage,
     Document,
     FlashcardAttempt,
+    Notification,
     QuizAttempt,
     LibraryDocument,
     StudySession,
@@ -188,12 +189,22 @@ class AuthenticationSecurityTests(TestCase):
         response = self.client.get(reverse('dashboard'))
 
         self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'StudentAI Command Center')
+        self.assertContains(response, 'Learning Snapshot')
+        self.assertContains(response, 'Recommended Next Step')
+        self.assertContains(response, 'Quick Navigation')
+        self.assertContains(response, 'Knowledge Score')
+        self.assertContains(response, 'Exam Readiness')
+        self.assertContains(response, 'Study Streak')
+        self.assertContains(response, 'Quiz Accuracy')
+        self.assertContains(response, 'Upload your first document')
         self.assertContains(response, 'Advanced Analytics')
         self.assertContains(response, 'Analytics Visuals')
         self.assertContains(response, 'id="dashboard-analytics-data"')
         self.assertContains(response, 'Weekly Study Hours')
         self.assertContains(response, 'No quiz history yet.')
         self.assertContains(response, 'No weak topics detected yet.')
+        self.assertNotContains(response, '<article class="glass-card document-card"')
 
     def test_dashboard_renders_advanced_analytics_with_activity(self):
         user = User.objects.create_user(
@@ -244,6 +255,10 @@ class AuthenticationSecurityTests(TestCase):
         response = self.client.get(reverse('dashboard'))
 
         self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'StudentAI Command Center')
+        self.assertContains(response, 'Learning Snapshot')
+        self.assertContains(response, 'Recommended Next Step')
+        self.assertContains(response, 'Quick Navigation')
         self.assertContains(response, 'Advanced Analytics')
         self.assertContains(response, 'Analytics Visuals')
         self.assertContains(response, 'id="dashboard-analytics-data"')
@@ -253,6 +268,7 @@ class AuthenticationSecurityTests(TestCase):
         self.assertContains(response, 'Flashcard Success')
         self.assertContains(response, 'Probability - 40.0%')
         self.assertContains(response, 'Algorithms - 100.0%')
+        self.assertNotContains(response, '<article class="glass-card document-card"')
 
     def test_first_upload_achievement_is_awarded(self):
         user = User.objects.create_user(
@@ -348,12 +364,11 @@ class AuthenticationSecurityTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Achievements')
-        self.assertContains(response, 'Achievement Progress')
         self.assertContains(response, 'First Upload')
         self.assertContains(response, 'Earned')
         self.assertTrue(get_achievement_progress(user))
 
-    def test_dashboard_renders_community_preview(self):
+    def test_dashboard_renders_community_and_library_shortcuts_without_full_previews(self):
         user = User.objects.create_user(
             username='dashboard_community',
             password='StrongPass123!'
@@ -369,7 +384,7 @@ class AuthenticationSecurityTests(TestCase):
             title='Study group tonight',
             message='We are reviewing algorithms exercises.'
         )
-        library_document = LibraryDocument.objects.create(
+        LibraryDocument.objects.create(
             title='Shared Algorithms Notes',
             field=LibraryDocument.FIELD_COMPUTER_SCIENCE,
             document_type=LibraryDocument.TYPE_NOTES,
@@ -388,8 +403,61 @@ class AuthenticationSecurityTests(TestCase):
         response = self.client.get(reverse('dashboard'))
 
         self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Quick Navigation')
         self.assertContains(response, 'Community')
-        self.assertContains(response, 'Study group tonight')
-        self.assertContains(response, 'Shared Algorithms Notes')
+        self.assertContains(response, 'AI Library')
         self.assertContains(response, reverse('community_chat'))
-        self.assertContains(response, reverse('library_detail', args=[library_document.id]))
+        self.assertContains(response, reverse('library_home'))
+        self.assertNotContains(response, 'Study group tonight')
+        self.assertNotContains(response, 'Shared Algorithms Notes')
+
+    def test_sidebar_navigation_is_clear_for_new_user_without_documents(self):
+        user = User.objects.create_user(
+            username='nav_empty',
+            password='StrongPass123!'
+        )
+        Notification.objects.create(
+            user=user,
+            title='Welcome to StudentAI',
+            message='Your AI study coach is ready.',
+            notification_type=Notification.TYPE_AI_RECOMMENDATION
+        )
+        self.client.login(username='nav_empty', password='StrongPass123!')
+
+        response = self.client.get(reverse('dashboard'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Multi-Doc AI')
+        self.assertContains(response, 'Ask questions across multiple documents.')
+        self.assertContains(response, 'Quiz History')
+        self.assertContains(response, 'Flashcard History')
+        self.assertContains(response, 'AI Tutor')
+        self.assertContains(response, 'Exam Simulator')
+        self.assertContains(response, 'AI Tutor: upload a document first')
+        self.assertContains(response, reverse('upload_document'))
+        self.assertContains(response, 'Notifications')
+        self.assertContains(response, 'Your AI study coach is ready.')
+        self.assertNotContains(response, '<button class="notification-btn"')
+
+    def test_sidebar_navigation_links_document_tools_for_existing_user(self):
+        user = User.objects.create_user(
+            username='nav_document',
+            password='StrongPass123!'
+        )
+        document = Document.objects.create(
+            title='Navigation Notes',
+            file='documents/navigation.pdf',
+            uploaded_by=user,
+            summary='Navigation summary.'
+        )
+        self.client.login(username='nav_document', password='StrongPass123!')
+
+        response = self.client.get(reverse('dashboard'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'AI Tutor: learn with one selected document in Study Mode')
+        self.assertContains(response, reverse('study_document', args=[document.id]))
+        self.assertContains(response, 'Exam Simulator: start a mock exam for your recommended document')
+        self.assertContains(response, reverse('exam_simulator', args=[document.id]))
+        self.assertContains(response, reverse('quiz_history'))
+        self.assertContains(response, reverse('flashcard_history'))

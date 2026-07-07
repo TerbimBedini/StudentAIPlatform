@@ -1453,6 +1453,8 @@ class DocumentTests(TestCase):
         self.assertContains(response, '82%')
         self.assertContains(response, 'Grafiku i progresit')
         self.assertContains(response, 'Cfare duhet perseritur?')
+        self.assertContains(response, 'Create Flashcards')
+        self.assertContains(response, reverse('documents_list'))
 
     def test_flashcard_evaluation_accepts_short_keyword_answer(self):
         result = evaluate_flashcard_answer(
@@ -1647,6 +1649,54 @@ class DocumentTests(TestCase):
         self.assertContains(response, 'AI Tutor')
         self.assertContains(response, reverse('document_file', args=[document.id]))
 
+    @patch('documents.views.search_document_chunks')
+    @patch('documents.views.generate_tutor_turn')
+    def test_document_study_ai_tutor_post_updates_session(
+        self,
+        mock_generate_tutor_turn,
+        mock_search_document_chunks
+    ):
+        mock_search_document_chunks.return_value = 'Relevant document context.'
+        mock_generate_tutor_turn.return_value = (
+            'Shpjegim: Tutor answer.\n\nPyetje: What comes next?',
+            {'last_question': 'What comes next?'}
+        )
+        user = User.objects.create_user(
+            username='study_tutor_post',
+            password='password123'
+        )
+        path = self.create_pdf(text='Material per tutor')
+        document = Document.objects.create(
+            title='Tutor Notes',
+            file=path.name,
+            uploaded_by=user,
+            extracted_text='Material per tutor'
+        )
+        self.client.login(username='study_tutor_post', password='password123')
+
+        response = self.client.post(
+            reverse('document_study', args=[document.id]),
+            {
+                'active_tab': 'chat',
+                'action': 'ask_ai',
+                'question': 'Explain the main idea'
+            }
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Tutor answer.')
+        self.assertContains(response, 'New Tutor Topic')
+        session = self.client.session
+        self.assertEqual(
+            session[f'study_tutor_state_{document.id}']['last_question'],
+            'What comes next?'
+        )
+        self.assertEqual(
+            session[f'study_chat_{document.id}'][0]['question'],
+            'Explain the main idea'
+        )
+        mock_generate_tutor_turn.assert_called_once()
+
     @patch('documents.views.generate_quiz')
     def test_document_study_generates_quiz_inside_workspace(self, mock_generate_quiz):
         mock_generate_quiz.return_value = '''
@@ -1763,6 +1813,8 @@ class DocumentTests(TestCase):
         self.assertContains(response, 'Super')
         self.assertContains(response, 'Grafiku i progresit')
         self.assertContains(response, 'Cfare duhet perseritur?')
+        self.assertContains(response, 'Start New Quiz')
+        self.assertContains(response, reverse('documents_list'))
 
     def test_create_demo_data_command_is_idempotent(self):
         call_command('create_demo_data')

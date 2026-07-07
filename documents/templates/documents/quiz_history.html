@@ -216,6 +216,15 @@
                 <a href="{% url 'dashboard' %}" class="btn btn-outline-light rounded-pill px-4">
                     Dashboard
                 </a>
+                {% if nav_documents_count %}
+                    <a href="{% url 'documents_list' %}" class="btn btn-light rounded-pill px-4">
+                        Start New Quiz
+                    </a>
+                {% else %}
+                    <a href="{% url 'upload_document' %}" class="btn btn-light rounded-pill px-4">
+                        Upload Document to Start New Quiz
+                    </a>
+                {% endif %}
             </div>
         </div>
     </section>
